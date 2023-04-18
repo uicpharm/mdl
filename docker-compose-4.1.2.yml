@@ -1,0 +1,43 @@
+version: '3'
+networks:
+   backend:
+   frontend:
+      external: true
+services:
+   mariadb:
+      image: ${MARIADB_IMAGE:-docker.io/bitnami/mariadb:10.6.12}
+      deploy:
+         mode: replicated
+         replicas: 1
+      networks:
+         - backend
+      environment:
+         - MARIADB_ROOT_PASSWORD=${ROOT_PASSWORD:-password}
+         - MARIADB_USER=${DB_USERNAME:-moodleuser}
+         - MARIADB_PASSWORD=${DB_PASSWORD:-password}
+         - MARIADB_DATABASE=${DB_NAME:-moodle}
+         - MARIADB_CHARACTER_SET=utf8mb4
+         - MARIADB_COLLATE=utf8mb4_unicode_ci
+         - MARIADB_SKIP_TEST_DB=yes
+      volumes:
+         - './backup.sql:/docker-entrypoint-initdb.d/restore-the-backup.sql:ro'
+         - './db:/bitnami/mariadb'
+   moodle:
+      image: ${MOODLE_IMAGE:-docker.io/bitnami/moodle:4.1.2}
+      deploy:
+         mode: replicated
+         replicas: 1
+      networks:
+         - backend
+         - frontend
+      environment:
+         - MOODLE_DATABASE_HOST=mariadb
+         - MOODLE_DATABASE_PORT_NUMBER=3306
+         - MOODLE_DATABASE_USER=${DB_USERNAME:-moodleuser}
+         - MOODLE_DATABASE_PASSWORD=${DB_PASSWORD:-password}
+         - MOODLE_DATABASE_NAME=${DB_NAME:-moodle}
+         - MOODLE_SKIP_BOOTSTRAP=yes
+         - MOODLE_HOST=${MOODLE_HOST:-localhost}
+      volumes:
+         - './src:/bitnami/moodle'
+         - './data:/bitnami/moodledata'
