@@ -1,0 +1,15 @@
+#!/bin/bash
+
+sub_cmd="${1//\.sh/}"
+scr_dir="${0%/*}"
+sub_cmd_path="$scr_dir/../$sub_cmd.sh"
+
+if [ -f "$sub_cmd_path" ]; then
+   "$sub_cmd_path" "${@:2}"
+else
+   [ -n "$sub_cmd" ] && echo -e "The subcommand $sub_cmd doesn't exist.\n"
+   echo 'Available subcommands:'
+   for f in "$scr_dir"/../*.sh; do
+      echo "  - $(basename "$f" | sed s/\.sh\$//)"
+   done
+fi
