@@ -32,12 +32,18 @@ for mname in $mnames; do
       break
    done
 
+   # Pull/checkout new code
    if [ "$curr_branch" = "$targetbranch" ]; then
       git pull --ff-only --no-tags
    else
       git checkout -f --guess "$targetbranch"
    fi
-   git apply -3 --whitespace=nowarn ../customizations/*.diff
+
+   # Apply diff customizations, if an environment-specific 'customizations' directory exists
+   [ -d '../customizations' ] && git apply -3 --whitespace=nowarn ../customizations/*.diff
+
+   # Copy global customization files in-place
+   rsync -r --exclude='*.sh' --exclude='*.sql' "$scr_dir/customizations/" .
 
    cd "$scr_dir" || exit 1
 
