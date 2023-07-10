@@ -1,0 +1,4 @@
+extends:
+   - './node_modules/@uicpharm/standardization/.eslintrc.js'
+ignorePatterns:
+   - 'environments'
