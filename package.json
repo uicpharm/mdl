@@ -24,6 +24,9 @@
    },
    "homepage": "https://github.com/uicpharm/moodle#readme",
    "devDependencies": {
-      "@uicpharm/standardization": "github:uicpharm/standardization#0.2.1"
+      "@uicpharm/standardization": "github:uicpharm/standardization#0.2.1",
+      "gulp": "4.0.2",
+      "gulp-touch-fd": "2.0.0",
+      "merge-stream": "2.0.0"
    }
 }
