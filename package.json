@@ -28,8 +28,10 @@
    "homepage": "https://github.com/uicpharm/moodle#readme",
    "devDependencies": {
       "@uicpharm/standardization": "github:uicpharm/standardization#0.2.1",
+      "concurrently": "8.2.0",
       "gulp": "4.0.2",
       "gulp-touch-fd": "2.0.0",
-      "merge-stream": "2.0.0"
+      "merge-stream": "2.0.0",
+      "vitepress": "1.0.0-beta.7"
    }
 }

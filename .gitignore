@@ -2,6 +2,8 @@
 .env
 .vscode
 backup
+docs/.vitepress/cache
+docs/.vitepress/dist
 environments/**/backup.sql
 environments/**/data
 environments/**/db
