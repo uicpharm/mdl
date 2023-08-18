@@ -10,6 +10,7 @@ configdata
 configtext
 contextid
 contextlevel
+coursevis
 cpemon
 curr
 custd
@@ -111,6 +112,7 @@ unixtime
 userid
 valueformat
 VERIFYPEER
+visibleold
 webservicepassword
 webserviceurl
 webserviceusername
