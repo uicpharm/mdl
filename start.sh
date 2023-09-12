@@ -15,10 +15,12 @@ done
 for mname in $mnames; do
 
    ver=$("$scr_dir/calc-docker-compose-version.sh" "$mname")
+   env_dir="$envs_dir/$mname"
    echo "Starting $mname..."
    # We touch the .env file since technically `docker compose config` will look at it.
-   env_dir="$envs_dir/$mname"
    "$scr_dir/touch-env.sh" "$mname"
+   # We update configs every time just so updating .env will naturally update the environment as well.
+   "$scr_dir/update-config.sh" "$mname"
    # Use `--with-registry-auth` to ensure Docker uses authentication to our ghcr.io repo.
    # Use `--resolve-image never` for deploy to work on arm64 computers. Production VMs are amd64, and Macs can run amd64 in emulation.
    # Get configs from `docker compose config` so we can pull in environment file settings.
