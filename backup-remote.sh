@@ -14,7 +14,13 @@ for mname in $mnames; do
    # shellcheck source=environments/sample.env
    "$scr_dir"/touch-env.sh "$mname" && source "$env_dir"/.env
    defaultsrv='mymoodle.sample.dev'
-   srv="$3"
+
+   srv="$REMOTE_SERVER"
+   data_path="$REMOTE_DATA_PATH"
+   src_path="$REMOTE_SRC_PATH"
+   db_name="$REMOTE_DB_NAME"
+   db_username="$REMOTE_DB_USERNAME"
+   db_password="$REMOTE_DB_PASSWORD"
 
    echo
    echo "${bold}Backing up ${ul}${mname}${norm}"
@@ -65,7 +71,7 @@ for mname in $mnames; do
    #
 
    if [[ "$data_status" == "need" || "$src_status" == "need" || "$db_status" == "need" ]]; then
-      if [ "$srv" = "" ]; then
+      if [ -z "$srv" ]; then
          echo -n "Server address [$defaultsrv]: "
          read -r srv
          srv="${srv:-$defaultsrv}"
@@ -73,20 +79,20 @@ for mname in $mnames; do
       echo "Will save missing backup data for $mname from $srv."
       mkdir -p backup
       # Moodle Data
-      if [ "$data_status" = "need" ]; then
+      if [[ "$data_status" == "need" && -z "$data_path" ]]; then
          echo -n "Path to $mname Moodle data: "
          read -r data_path
       fi
       # Moodle Source Code
-      if [ "$src_status" = "need" ]; then
+      if [[ "$src_status" == "need" && -z "$src_path" ]]; then
          echo -n "Path to $mname Moodle source code: "
          read -r src_path
       fi
       # Moodle Database
-      if [ "$db_status" = "need" ]; then
-         default_db_name="$DB_NAME"
-         default_db_username="$DB_USERNAME"
-         default_db_password="$DB_PASSWORD"
+      if [ "$db_status" = "need" ] && [[ -z "$db_name" || -z "$db_username" || -z "$db_password" ]]; then
+         default_db_name="${REMOTE_DB_NAME:-$DB_NAME}"
+         default_db_username="${REMOTE_DB_USERNAME:-$DB_USERNAME}"
+         default_db_password="${REMOTE_DB_PASSWORD:-$DB_PASSWORD}"
          echo -n "Database name [$default_db_name]: "
          read -r db_name
          db_name="${db_name:-$default_db_name}"
