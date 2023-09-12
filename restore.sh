@@ -9,7 +9,7 @@ for mname in $mnames; do
 
    env_dir="$envs_dir/$mname"
    # shellcheck source=environments/sample.env
-   "$scr_dir/touch-env.sh" "$mname" && source "$env_dir/.env"
+   "$scr_dir/touch-env.sh" "$mname" && source "$envs_dir/blank.env" && source "$env_dir/.env"
    echo "Preparing to restore $mname..."
 
    # Stop the services if they're running

@@ -8,7 +8,7 @@ for mname in $mnames; do
    env_dir="$scr_dir/environments/$mname"
    src_path="$env_dir/src"
    # shellcheck source=environments/sample.env
-   "$scr_dir/touch-env.sh" "$mname" && source "$env_dir/.env"
+   "$scr_dir/touch-env.sh" "$mname" && source "$env_dir/../blank.env" && source "$env_dir/.env"
 
    # Get desired wwwroot value
    if [ -z "$WWWROOT" ]; then

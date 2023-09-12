@@ -11,7 +11,7 @@ for mname in $mnames; do
    container=$(docker ps -q -f name="${mname}_mariadb" | head -1)
    branchver=$("$scr_dir"/moodle-version.sh "$mname")
    # shellcheck source=environments/sample.env
-   "$scr_dir"/touch-env.sh "$mname" && source "$env_dir"/.env
+   "$scr_dir"/touch-env.sh "$mname" && source "$envs_dir/blank.env" && source "$env_dir/.env"
 
    # Check that the mariadb service is running
    if [ -z "$container" ]; then
