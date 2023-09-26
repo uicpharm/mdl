@@ -52,6 +52,7 @@ jcurt
 libdir
 localcache
 localplugins
+logname
 medce
 medicinece
 mform
@@ -67,6 +68,7 @@ nevoband
 nowarn
 oldversion
 opencontainers
+OPTARG
 pagelayout
 parentcat
 pharmacyce
@@ -84,6 +86,8 @@ realpath
 resetpassword
 RETURNTRANSFER
 runcnt
+schedtask
+schedtasks
 settingpage
 settingsnav
 shortcharvalue
