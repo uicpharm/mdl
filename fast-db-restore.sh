@@ -38,15 +38,17 @@ for mname in $mnames; do
    # Backup targets
    db_target="${mname}_${label}_dbfiles.tar"
 
-   # Docker environment paths
-   db_path="$env_dir/db"
+   # Get database volume name, or, if it doesn't exist, make the name we expect it to be
+   db_vol_name=$(docker volume ls -q --filter "label=com.docker.stack.namespace=$mname" --filter "name=db")
+   if [ -z "$db_vol_name" ]; then
+      db_vol_name="${mname}_db"
+   else
+      docker volume rm "$db_vol_name" 2> /dev/null # If volume removal fails, its fine
+   fi
 
-   # Clear existing work files
-   rm -Rf "$db_path"
-   mkdir -p "$db_path"
-
-   # Extract
-   tar xf "$backup_dir/$db_target" -C "$db_path"
+   # Recreate volume and extract to the database volume
+   docker volume create --label "com.docker.stack.namespace=$mname" "$db_vol_name"
+   docker run --rm -v "$db_vol_name":/db -v "$backup_dir":/backup alpine:3 tar xf "/backup/$db_target" -C /db
 
    echo "Done restoring the fast backup of database for $mname with label $label."
 

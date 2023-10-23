@@ -6,6 +6,5 @@ docs/.vitepress/cache
 docs/.vitepress/dist
 environments/**/backup.sql
 environments/**/data
-environments/**/db
 environments/**/src
 node_modules

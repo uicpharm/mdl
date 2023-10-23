@@ -41,12 +41,11 @@ for mname in $mnames; do
 
    # Docker environment paths
    data_path="$env_dir/data"
-   db_path="$env_dir/db"
    src_path="$env_dir/src"
    sql_path="$env_dir/backup.sql"
 
    # Clear existing work files
-   rm -Rf "$data_path" "$src_path" "$db_path" "$sql_path"
+   "$scr_dir/remove.sh" "$mname"
 
    # Checks
    docker_exists="$(grep -w 1001 /etc/passwd)"
@@ -59,25 +58,20 @@ for mname in $mnames; do
    mkdir -p "$data_path/localcache"
    mkdir -p "$data_path/cache"
    mkdir -p "$src_path"
-   mkdir -p "$db_path" && [ "$arch" = "Linux" ] && chown 1001 "$db_path"
 
    # In all of these file restores, we only follow up with changing ownership if
    # it is indeed a Linux server. Other dev environments don't need it.
 
    # Extract SQL backup file, which docker-compose file points to for restore
    if [[ "$db_target" =~ \.bz2$ ]]; then
-      bunzip2 -c "$backup_dir/$db_target" > "$sql_path" && \
-         [ -n "$docker_exists" ] && [ "$arch" = "Linux" ] && chown 1001 "$sql_path" &
+      (bunzip2 -c "$backup_dir/$db_target" > "$sql_path" && [ -n "$docker_exists" ] && [ "$arch" = "Linux" ] && chown 1001 "$sql_path") &
    else
-      cp "$backup_dir/$db_target" "$sql_path" && \
-         [ -n "$docker_exists" ] && [ "$arch" = "Linux" ] && chown 1001 "$sql_path"
+      cp "$backup_dir/$db_target" "$sql_path" && [ -n "$docker_exists" ] && [ "$arch" = "Linux" ] && chown 1001 "$sql_path"
    fi
 
    # Extract source and data. Give ownership to daemon process (1).
-   tar xf "$backup_dir/$data_target" -C "$data_path" && \
-      [ "$arch" = "Linux" ] && chown -R 1 "$data_path" &
-   tar xf "$backup_dir/$src_target" -C "$src_path" && \
-      [ "$arch" = "Linux" ] && chown -R 1 "$src_path" &
+   (tar xf "$backup_dir/$data_target" -C "$data_path" && [ "$arch" = "Linux" ] && chown -R 1 "$data_path") &
+   (tar xf "$backup_dir/$src_target" -C "$src_path" && [ "$arch" = "Linux" ] && chown -R 1 "$src_path") &
 
    wait
 

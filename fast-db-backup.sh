@@ -1,7 +1,6 @@
 #!/bin/bash
 
 scr_dir="${0%/*}"
-envs_dir="$scr_dir/environments"
 backup_dir="$scr_dir/backup"
 mnames=$("$scr_dir"/select-env.sh "$1")
 
@@ -13,6 +12,13 @@ filesystem. This should not be used for production purposes.
 for mname in $mnames; do
 
    echo "Fast backup of the $mname database."
+
+   # Abort if the volume can't be found
+   db_vol_name=$(docker volume ls -q --filter "label=com.docker.stack.namespace=$mname" --filter "name=db")
+   if [ -z "$db_vol_name" ]; then
+      echo "Database volume for $mname could not be found."
+      exit 1
+   fi
 
    # What label on the backup do they want? (Defaults to "local_branchver_yyyymmdd")
    branchver=$("$scr_dir"/moodle-version.sh "$mname")
@@ -26,9 +32,8 @@ for mname in $mnames; do
 
    "$scr_dir/stop.sh" "$mname"
 
-   env_dir="$envs_dir/$mname"
    db_target="${mname}_${label}_dbfiles.tar"
-   tar c --no-xattrs -C "$env_dir/db" . > "$backup_dir/$db_target"
+   docker run --rm -v "$db_vol_name":/db -v "$backup_dir":/backup alpine:3 tar cf "/backup/$db_target" -C /db .
 
    echo "Fast backup of $mname is done!"
 

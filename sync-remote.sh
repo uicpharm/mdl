@@ -96,8 +96,8 @@ for mname in $mnames; do
    # Docker environment paths
    data_target="$env_dir/data"
    src_target="$env_dir/src"
-   db_target="$env_dir/db"
    sql_target="$env_dir/backup.sql"
+   db_vol_name=$(docker volume ls -q --filter "label=com.docker.stack.namespace=$mname" --filter "name=db")
 
    # Stop the services if they're running
    "$scr_dir/stop.sh" "$mname"
@@ -142,9 +142,9 @@ for mname in $mnames; do
    " > "$sql_target"; then
       # Remove the backup file since backup failed
       rm "$sql_target"
+   else
+      [ -n "$db_vol_name" ] && echo "Clearing the database Docker volume... $(docker volume rm "$db_vol_name")"
    fi && \
-   rm -Rf "$db_target" && \
-   mkdir -p "$db_target" && [ "$arch" = "Linux" ] && chown 1001 "$db_target" && \
    [ -n "$docker_exists" ] && [ "$arch" = "Linux" ] && chown 1001 "$sql_target"
 
    # Update Moodle config
