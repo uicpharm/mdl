@@ -1,14 +1,19 @@
 accesslib
 Acentrus
 activemname
+addinstance
 additionalhtmlhead
 altwwwroot
 aquarles
+blocksettings
 branchver
+captype
 categoryid
 categoryrecord
 categoryvis
 classname
+clonepermissionsfrom
+completiontimespent
 configdata
 configtext
 contextid
@@ -39,6 +44,7 @@ defaultsrv
 defaultwwwroot
 descriptionformat
 dirroot
+editingteacher
 elementname
 enableanalytics
 enablebadges
@@ -59,10 +65,13 @@ inputname
 instanceid
 intvalue
 jcurt
+lessonid
+lessontime
 libdir
 localcache
 localplugins
 logname
+manageblocks
 manageownfiles
 medce
 medicinece
@@ -96,6 +105,7 @@ purgecaches
 realpath
 resetpassword
 RETURNTRANSFER
+riskbitmask
 roleid
 runcnt
 schedtask
@@ -108,6 +118,7 @@ signup
 smul
 sortorder
 startdate
+starttime
 stylesheet
 subscriptionid
 targ
