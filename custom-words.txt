@@ -100,6 +100,7 @@ roleid
 runcnt
 schedtask
 schedtasks
+setaf
 settingpage
 settingsnav
 shortcharvalue
