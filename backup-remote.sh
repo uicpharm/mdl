@@ -77,7 +77,7 @@ for mname in $mnames; do
          srv="${srv:-$defaultsrv}"
       fi
       echo "Will save missing backup data for $mname from $srv."
-      mkdir -p backup
+      mkdir -p "$backup_dir"
       # Moodle Data
       if [[ "$data_status" == "need" && -z "$data_path" ]]; then
          echo -n "Path to $mname Moodle data: "
