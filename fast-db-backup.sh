@@ -14,7 +14,7 @@ for mname in $mnames; do
    echo "Fast backup of the $mname database."
 
    # Abort if the volume can't be found
-   db_vol_name=$(docker volume ls -q --filter "label=com.docker.stack.namespace=$mname" --filter "name=db")
+   db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
    if [ -z "$db_vol_name" ]; then
       echo "Database volume for $mname could not be found."
       exit 1
@@ -33,7 +33,7 @@ for mname in $mnames; do
    "$scr_dir/stop.sh" "$mname"
 
    db_target="${mname}_${label}_dbfiles.tar"
-   docker run --rm -v "$db_vol_name":/db -v "$backup_dir":/backup alpine:3 tar cf "/backup/$db_target" -C /db .
+   docker run --rm -v "$db_vol_name":/db -v "$backup_dir":/backup docker.io/alpine:3 tar cf "/backup/$db_target" -C /db .
 
    echo "Fast backup of $mname is done!"
 

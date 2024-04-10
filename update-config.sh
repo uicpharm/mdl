@@ -25,6 +25,9 @@ for mname in $mnames; do
       done
    fi
 
+   # If config.php does not exist, skip the rest of this
+   [ ! -f "$src_path/config.php" ] && continue
+
    # Replace values in config
    sed -i -e "/'dbport'/ s/> .*,/> 3306,/" "$src_path/config.php"
    sed -i -e "/CFG->dbhost/ s/'.*'/'mariadb'/" "$src_path/config.php"

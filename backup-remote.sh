@@ -1,7 +1,6 @@
 #!/bin/bash
 
 scr_dir="${0%/*}"
-envs_dir="$scr_dir/environments"
 backup_dir="$scr_dir/backup"
 mnames=$("$scr_dir"/select-env.sh "$1")
 norm="$(tput sgr0)"
@@ -10,9 +9,8 @@ bold="$(tput bold)"
 
 for mname in $mnames; do
 
-   env_dir="$envs_dir/$mname"
    # shellcheck source=environments/sample.env
-   "$scr_dir"/touch-env.sh "$mname" && source "$envs_dir/blank.env" && source "$env_dir/.env"
+   . "$scr_dir/export-env.sh" "$mname"
    defaultsrv='mymoodle.sample.dev'
 
    srv="$REMOTE_SERVER"

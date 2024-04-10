@@ -8,7 +8,7 @@ runcnt=0
 for dir in "$envs_dir"/*/
 do
    mname=$(basename "$dir")
-   if [ -n "$(docker service ls -q -f name="$mname")" ]; then
+   if docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep -q moodle; then
       (( runcnt++ )) || true
       running="$mname"
    fi

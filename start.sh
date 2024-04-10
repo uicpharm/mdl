@@ -4,6 +4,7 @@ scr_dir="${0%/*}"
 envs_dir="$scr_dir/environments"
 mnames=$("$scr_dir/select-env.sh" "$1")
 wait=false
+[[ $(docker --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false
 
 for arg in "$@"; do
    if [ "$arg" == "--wait" ]; then
@@ -14,17 +15,14 @@ done
 
 for mname in $mnames; do
 
-   ver=$("$scr_dir/calc-docker-compose-version.sh" "$mname")
-   env_dir="$envs_dir/$mname"
+   docker_compose_path=$("$scr_dir/calc-docker-compose-path.sh" "$mname")
    echo "Starting $mname..."
-   # We touch the .env file since technically `docker compose config` will look at it.
-   "$scr_dir/touch-env.sh" "$mname"
-   # We update configs every time just so updating .env will naturally update the environment as well.
-   "$scr_dir/update-config.sh" "$mname"
-   # Use `--with-registry-auth` to ensure Docker uses authentication to our ghcr.io repo.
-   # Use `--resolve-image never` for deploy to work on arm64 computers. Production VMs are amd64, and Macs can run amd64 in emulation.
-   # Get configs from `docker compose config` so we can pull in environment file settings.
-   docker stack deploy --with-registry-auth --resolve-image never -c <(docker compose -f "$env_dir/docker-compose-$ver.yml" config | sed '/^name/d' | sed '/bind:/d' | sed '/create_host_path:/d' | sed -e '/published/ s/"//g') "$mname"
+   . "$scr_dir/export-env.sh" "$mname"
+
+   # Explicitly add the pod so it has its lifecycle container and the exact name we want
+   $IS_PODMAN && ! docker pod exists "$mname" && podman pod create --name "$mname"
+   $IS_PODMAN && podman_args=('--podman-run-args' "--pod $mname")
+   (cd "$scr_dir" && docker-compose "${podman_args[@]}" -f "$docker_compose_path" up -d)
 
    if [ "$wait" == true ]; then
       # Do not exit until environment is fully running

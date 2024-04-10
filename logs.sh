@@ -8,6 +8,6 @@ mname=$("$scr_dir/select-env.sh" "${1:-$activemname}" --no-all)
 containers="$(docker ps -q -f name="$mname" 2> /dev/null)"
 [ -z "$containers" ] && echo "The $mname stack is not running." && exit 1
 
-env_dir="$scr_dir/environments/$mname"
-ver=$("$scr_dir/calc-docker-compose-version.sh" "$mname")
-docker-compose -f "$env_dir/docker-compose-$ver.yml" logs "${@:2}"
+docker_compose_path=$("$scr_dir/calc-docker-compose-path.sh" "$mname")
+. "$scr_dir/export-env.sh" "$mname"
+(cd "$scr_dir" && docker-compose -f "$docker_compose_path" logs "${@:2}")

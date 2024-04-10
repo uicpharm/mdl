@@ -35,7 +35,7 @@ for mname in $mnames; do
 
    env_dir="$envs_dir/$mname"
    # shellcheck source=environments/sample.env
-   "$scr_dir/touch-env.sh" "$mname" && source "$envs_dir/blank.env" && source "$env_dir/.env"
+   . "$scr_dir/export-env.sh" "$mname"
    defaultsrv='mymoodle.sample.dev'
 
    srv="$REMOTE_SERVER"
@@ -97,7 +97,7 @@ for mname in $mnames; do
    data_target="$env_dir/data"
    src_target="$env_dir/src"
    sql_target="$env_dir/backup.sql"
-   db_vol_name=$(docker volume ls -q --filter "label=com.docker.stack.namespace=$mname" --filter "name=db")
+   db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
 
    # Stop the services if they're running
    "$scr_dir/stop.sh" "$mname"

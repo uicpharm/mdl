@@ -21,7 +21,7 @@ for mname in $mnames; do
    fi
 
    # Get an existing moodle task on this node
-   container="$(docker ps -q -f name="${mname}_moodle" | head -1)"
+   container="$(docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle | head -1)"
 
    if [ -n "$container" ]; then
       docker exec $paramI -t "$container" php "/bitnami/moodle/admin/cli/$cmd.php" "${@:3}"

@@ -9,7 +9,7 @@ for mname in $mnames; do
 
    env_dir="$envs_dir/$mname"
    # shellcheck source=environments/sample.env
-   "$scr_dir/touch-env.sh" "$mname" && source "$envs_dir/blank.env" && source "$env_dir/.env"
+   . "$scr_dir/export-env.sh" "$mname"
    echo "Preparing to restore $mname..."
 
    # Stop the services if they're running
@@ -71,7 +71,7 @@ for mname in $mnames; do
 
    # Extract source and data. Give ownership to daemon process (1).
    (tar xf "$backup_dir/$data_target" -C "$data_path" && [ "$arch" = "Linux" ] && chown -R 1 "$data_path") &
-   (tar xf "$backup_dir/$src_target" -C "$src_path" && [ "$arch" = "Linux" ] && chown -R 1 "$src_path") &
+   tar xf "$backup_dir/$src_target" -C "$src_path" &
 
    wait
 

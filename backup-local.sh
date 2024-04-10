@@ -8,10 +8,10 @@ mnames=$("$scr_dir"/select-env.sh "$1")
 for mname in $mnames; do
 
    env_dir="$envs_dir/$mname"
-   container=$(docker ps -q -f name="${mname}_mariadb" | head -1)
+   container=$(docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep mariadb | head -1)
    branchver=$("$scr_dir"/moodle-version.sh "$mname")
    # shellcheck source=environments/sample.env
-   "$scr_dir"/touch-env.sh "$mname" && source "$envs_dir/blank.env" && source "$env_dir/.env"
+   . "$scr_dir/export-env.sh" "$mname"
 
    # Check that the mariadb service is running
    if [ -z "$container" ]; then
@@ -54,6 +54,7 @@ for mname in $mnames; do
    tar cj --no-xattrs -C "$src_path" . > "$backup_dir/$src_target" &
    # Moodle Database
    echo "Copying database to $db_target..."
+   DOCKER_CLI_HINTS=false \
    docker exec -it "$container" mysqldump \
       --user="$DB_USERNAME" \
       --password="$DB_PASSWORD" \

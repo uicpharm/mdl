@@ -13,12 +13,13 @@ ok=true
 
 for mname in $mnames; do
 
-   running="$(docker service ls -q -f name="$mname")"
-   labels="$(find "$backup_dir" -name "${mname}_*_src.*" | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq)"
-   fast_labels=$(find "$backup_dir" -name "${mname}_*_dbfiles.tar" | cut -d"_" -f2- | sed -e "s/_dbfiles.tar//")
+   running="$(docker ps -q -f name="$mname")"
+   labels="$(find "$backup_dir" -name "${mname}_*_src.*" | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
+   fast_labels=$(find "$backup_dir" -name "${mname}_*_dbfiles.tar" | cut -d"_" -f2- | sed -e "s/_dbfiles.tar//" | sort)
    data_dir="$envs_dir/$mname/data"
    src_dir="$envs_dir/$mname/src"
-   db_vol_name=$(docker volume ls -q --filter "label=com.docker.stack.namespace=$mname" --filter "name=db")
+   db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
+   docker_compose_path=$("$scr_dir/calc-docker-compose-path.sh" "$mname")
 
    echo "${ul}Environment: $bold$mname$norm"
    # Status
@@ -57,7 +58,8 @@ for mname in $mnames; do
    # If running, the services list
    if [ -n "$running" ]; then
       echo
-      docker stack services "$mname"
+      . "$scr_dir/export-env.sh" "$mname"
+      (cd "$scr_dir" && docker-compose -f "$docker_compose_path" ps)
    fi
    echo
 
