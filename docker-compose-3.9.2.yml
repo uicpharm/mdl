@@ -1,4 +1,4 @@
-version: '3'
+name: $mname
 networks:
    backend:
    frontend:
@@ -6,9 +6,8 @@ networks:
 services:
    mariadb:
       image: ${MARIADB_IMAGE:-docker.io/bitnami/mariadb:10.3.37}
-      deploy:
-         mode: replicated
-         replicas: 1
+      privileged: true
+      restart: unless-stopped
       networks:
          - backend
       environment:
@@ -20,13 +19,14 @@ services:
          - MARIADB_COLLATE=utf8mb4_unicode_ci
          - MARIADB_SKIP_TEST_DB=yes
       volumes:
-         - './backup.sql:/docker-entrypoint-initdb.d/restore-the-backup.sql:ro'
+         - './environments/$mname/backup.sql:/docker-entrypoint-initdb.d/restore-the-backup.sql:ro'
          - 'db:/bitnami/mariadb'
    moodle:
       image: ${MOODLE_IMAGE:-docker.io/bitnami/moodle:3.9.2}
-      deploy:
-         mode: replicated
-         replicas: 1
+      privileged: true
+      restart: unless-stopped
+      depends_on:
+         - mariadb
       networks:
          - backend
          - frontend
@@ -39,8 +39,8 @@ services:
          - MOODLE_SKIP_BOOTSTRAP=yes
          - MOODLE_HOST=${MOODLE_HOST:-localhost}
       volumes:
-         - './src:/bitnami/moodle'
-         - './data:/bitnami/moodledata'
+         - './environments/$mname/src:/bitnami/moodle'
+         - './environments/$mname/data:/bitnami/moodledata'
 
 volumes:
    db:
