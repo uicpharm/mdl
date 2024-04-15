@@ -12,6 +12,7 @@ envs_dir="$scr_dir/environments"
 mname=$("$scr_dir"/select-env.sh "$1" --no-all)
 env_path="$envs_dir/$mname/.env"
 
+mkdir -p "$envs_dir/$mname"
 touch "$env_path"
 grep -qw ROOT_PASSWORD "$env_path" || echo ROOT_PASSWORD="$(openssl rand -hex 24)" >> "$env_path"
 grep -qw DB_NAME "$env_path" || echo DB_NAME="moodle_$mname" >> "$env_path"
