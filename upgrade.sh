@@ -27,7 +27,7 @@ for mname in $mnames; do
    git status -s -b
 
    PS3="Select the version to upgrade to: "
-   select targetbranch in $(git branch -lr | grep -E "MOODLE_[34][0-9]+_STABLE" | cut -d"/" -f2); do
+   select targetbranch in $(git branch -lr | grep -E "MOODLE_[3-9][0-9]+_STABLE" | cut -d"/" -f2); do
       [ "$curr_branch" = "$targetbranch" ] && echo "You're on this branch now. Will fast forward to latest commit." || echo "Will switch to $targetbranch"
       break
    done
