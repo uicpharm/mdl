@@ -70,6 +70,7 @@ lessontime
 libdir
 localcache
 localplugins
+localtime
 logname
 manageblocks
 manageownfiles
@@ -102,6 +103,7 @@ profiledefaultdata
 profilefield
 providerid
 purgecaches
+readlink
 realpath
 resetpassword
 RETURNTRANSFER
