@@ -8,6 +8,7 @@
          "path": "custom-words.txt"
       }
    ],
+   "enableFiletypes": ["*"],
    "dictionaries": ["proj-custom-words"],
    "ignorePaths": [
       "**/*.diff"
