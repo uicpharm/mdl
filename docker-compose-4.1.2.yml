@@ -19,6 +19,7 @@ services:
          - MARIADB_COLLATE=utf8mb4_unicode_ci
          - MARIADB_SKIP_TEST_DB=yes
       volumes:
+         - '/etc/localtime:/etc/localtime:ro'
          - './environments/$mname/backup.sql:/docker-entrypoint-initdb.d/restore-the-backup.sql:ro'
          - 'db:/bitnami/mariadb'
    moodle:
@@ -39,6 +40,7 @@ services:
          - MOODLE_SKIP_BOOTSTRAP=yes
          - MOODLE_HOST=${MOODLE_HOST:-localhost}
       volumes:
+         - '/etc/localtime:/etc/localtime:ro'
          - './environments/$mname/src:/bitnami/moodle'
          - './environments/$mname/data:/bitnami/moodledata'
 
