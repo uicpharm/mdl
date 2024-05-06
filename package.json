@@ -12,7 +12,7 @@
       "dev:docs": "vitepress dev docs",
       "test": "npm run check-node",
       "standards": "npm run shellcheck && npm run eslint && npm run yamllint && npm run markdownlint && npm run cspell && npm run commitlint",
-      "check-node": "check-node-version --node 18.14.2 --npm 9.5.0",
+      "check-node": "check-node-version --node 20.12.2 --npm 10.5.0",
       "commitlint": "commitlint --from 35691b683b",
       "cspell": "cspell . --show-suggestions --no-progress",
       "eslint": "eslint .",
