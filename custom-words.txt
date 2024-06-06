@@ -20,6 +20,7 @@ contextid
 contextlevel
 COURSECAT
 coursecatviewer
+courseid
 coursevis
 cpemon
 curr
@@ -59,6 +60,7 @@ fieldid
 fitem
 FOLLOWLOCATION
 forceunique
+guestloginbutton
 idnumber
 includetime
 initdb
@@ -66,6 +68,7 @@ inputname
 instanceid
 intvalue
 jcurt
+jsordering
 lessonid
 lessontime
 libdir
@@ -95,6 +98,7 @@ nowarn
 oldversion
 opencontainers
 OPTARG
+ownerid
 pagelayout
 parentcat
 pharmacyce
@@ -147,6 +151,7 @@ uniquevalues
 unixtime
 usecomments
 userid
+usermenu
 usetags
 valueformat
 VERIFYPEER
