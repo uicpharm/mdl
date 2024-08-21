@@ -48,6 +48,7 @@ for mname in $mnames; do
       --exclude='./sessions' \
       --exclude='./localcache' \
       --exclude='./cache' \
+      --exclude='./moodle-cron.log' \
       -C "$data_path" . > "$backup_dir/$data_target" &
    # Moodle Source Code
    echo "Copying Moodle source code to $src_target..."

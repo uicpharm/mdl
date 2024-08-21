@@ -111,6 +111,7 @@ for mname in $mnames; do
             --exclude='./sessions' \
             --exclude='./localcache' \
             --exclude='./cache' \
+            --exclude='./moodle-cron.log' \
             -C "$data_path" . > "$backup_dir/$data_target";
          then
             # Remove the backup file since backup failed
