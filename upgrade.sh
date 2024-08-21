@@ -3,6 +3,7 @@
 scr_dir="$(realpath "${0%/*}")"
 envs_dir="$scr_dir/environments"
 mnames=$("$scr_dir/select-env.sh" "$1")
+targetbranch="$2"
 
 for mname in $mnames; do
 
@@ -26,11 +27,17 @@ for mname in $mnames; do
    echo "Your current branch: $curr_branch"
    git status -s -b
 
-   PS3="Select the version to upgrade to: "
-   select targetbranch in $(git branch -lr | grep -E "MOODLE_[3-9][0-9]+_STABLE" | cut -d"/" -f2); do
-      [ "$curr_branch" = "$targetbranch" ] && echo "You're on this branch now. Will fast forward to latest commit." || echo "Will switch to $targetbranch"
-      break
-   done
+   # Get list of branches. If targetbranch isn't in list, prompt user to select one
+   targetbranches="$(git branch -lr | grep -E "MOODLE_[3-9][0-9]+_STABLE" | cut -d"/" -f2)"
+   echo "$targetbranches" | grep -qw "$targetbranch" || targetbranch=""
+   if  [ -z "$targetbranch" ]; then
+      PS3="Select the version to upgrade to: "
+      select targetbranch in $targetbranches; do
+         targetbranch="${targetbranch:-$REPLY}"
+         echo "$targetbranches" | grep -qw "$targetbranch" && break
+      done
+   fi
+   [ "$curr_branch" = "$targetbranch" ] && echo "You're on this branch now. Will fast forward to latest commit." || echo "Will switch to $targetbranch"
 
    # Pull/checkout new code
    if [ "$curr_branch" = "$targetbranch" ]; then
