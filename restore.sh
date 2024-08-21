@@ -48,8 +48,7 @@ for mname in $mnames; do
    "$scr_dir/remove.sh" "$mname"
 
    # Checks
-   docker_exists="$(grep -w 1001 /etc/passwd)"
-   arch="$(uname)"
+   docker_id="$(id -u docker 2>/dev/null)"
 
    # Set up the directory for the Moodle environment
    mkdir -p "$data_path/sessions"
@@ -64,13 +63,13 @@ for mname in $mnames; do
 
    # Extract SQL backup file, which docker-compose file points to for restore
    if [[ "$db_target" =~ \.bz2$ ]]; then
-      (bunzip2 -c "$backup_dir/$db_target" > "$sql_path" && [ -n "$docker_exists" ] && [ "$arch" = "Linux" ] && chown 1001 "$sql_path") &
+      (bunzip2 -c "$backup_dir/$db_target" > "$sql_path" && [ -n "$docker_id" ] && chown "$docker_id" "$sql_path") &
    else
-      cp "$backup_dir/$db_target" "$sql_path" && [ -n "$docker_exists" ] && [ "$arch" = "Linux" ] && chown 1001 "$sql_path"
+      cp "$backup_dir/$db_target" "$sql_path" && [ -n "$docker_id" ] && chown "$docker_id" "$sql_path"
    fi
 
-   # Extract source and data. Give ownership to daemon process (1).
-   (tar xf "$backup_dir/$data_target" -C "$data_path" && [ "$arch" = "Linux" ] && chown -R 1 "$data_path") &
+   # Extract source and data.
+   tar xf "$backup_dir/$data_target" -C "$data_path" &
    tar xf "$backup_dir/$src_target" -C "$src_path" &
 
    wait

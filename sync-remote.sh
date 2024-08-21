@@ -6,8 +6,7 @@ norm=$(tput sgr0)
 ul=$(tput smul)
 bold=$(tput bold)
 
-arch=$(uname)
-docker_exists=$(grep -w 1001 /etc/passwd)
+docker_id="$(id -u docker 2>/dev/null)"
 user=''
 identity=''
 
@@ -119,16 +118,14 @@ for mname in $mnames; do
       --exclude='/sessions/' \
       --exclude='/localcache/' \
       --exclude='/cache/' \
-      "$user_at_srv:$data_path" "$data_target" && \
-   [ "$arch" = "Linux" ] && chown -R 1 "$data_target"
+      "$user_at_srv:$data_path" "$data_target"
 
    # Moodle Source Code
    echo "Syncing Moodle source code..."
    rsync -aLq --delete --progress \
       -e "ssh ${ssh_params[*]}" \
       --rsync-path="sudo rsync" \
-      "$user_at_srv:$src_path" "$src_target" && \
-   [ "$arch" = "Linux" ] && chown -R 1 "$src_target"
+      "$user_at_srv:$src_path" "$src_target"
 
    # Moodle Database
    echo "Syncing database..."
@@ -145,7 +142,7 @@ for mname in $mnames; do
    else
       [ -n "$db_vol_name" ] && echo "Clearing the database Docker volume... $(docker volume rm "$db_vol_name")"
    fi && \
-   [ -n "$docker_exists" ] && [ "$arch" = "Linux" ] && chown 1001 "$sql_target"
+   [ -n "$docker_id" ] && chown "$docker_id" "$sql_target"
 
    # Update Moodle config
    "$scr_dir/update-config.sh" "$mname"
