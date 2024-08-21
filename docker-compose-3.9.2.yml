@@ -25,6 +25,8 @@ services:
    moodle:
       image: ${MOODLE_IMAGE:-docker.io/bitnami/moodle:3.9.2}
       privileged: true
+      command: [ "/opt/bitnami/scripts/moodle/run.sh" ]
+      entrypoint: [ "custom-entrypoint.sh" ]
       restart: unless-stopped
       depends_on:
          - mariadb
@@ -41,6 +43,7 @@ services:
          - MOODLE_HOST=${MOODLE_HOST:-localhost}
       volumes:
          - '/etc/localtime:/etc/localtime:ro'
+         - './customizations/scripts:/usr/local/bin:ro'
          - './environments/$mname/src:/bitnami/moodle'
          - './environments/$mname/data:/bitnami/moodledata'
 
