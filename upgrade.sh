@@ -52,6 +52,10 @@ for mname in $mnames; do
    # Copy global customization files in-place
    rsync -r --exclude='scripts' --exclude='*.sql' "$scr_dir/customizations/" .
 
+   # Fix permissions now if the container is actively running
+   container="$(docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle | head -1)"
+   [ -n "$container" ] && docker exec "$container" fix-perms
+
    cd "$scr_dir" || exit 1
 
    echo 'Done!'
