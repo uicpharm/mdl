@@ -21,6 +21,7 @@ for mname in $mnames; do
    git fetch -np
 
    # Remove any untracked code
+   git stash push -u
    git reset --hard
    git clean -dfe local
    curr_branch="$(git symbolic-ref --short HEAD)"
@@ -46,8 +47,8 @@ for mname in $mnames; do
       git checkout -f --guess "$targetbranch"
    fi
 
-   # Apply diff customizations, if an environment-specific 'customizations' directory exists
-   [ -d '../customizations' ] && git apply -3 --whitespace=nowarn ../customizations/*.diff
+   # Pop stash
+   git stash pop
 
    # Copy global customization files in-place
    rsync -r --exclude='scripts' --exclude='*.sql' "$scr_dir/customizations/" .
