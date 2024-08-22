@@ -43,7 +43,7 @@ for mname in $mnames; do
    [ -d '../customizations' ] && git apply -3 --whitespace=nowarn ../customizations/*.diff
 
    # Copy global customization files in-place
-   rsync -r --exclude='*.sh' --exclude='*.sql' "$scr_dir/customizations/" .
+   rsync -r --exclude='scripts' --exclude='*.sql' "$scr_dir/customizations/" .
 
    cd "$scr_dir" || exit 1
 
