@@ -34,9 +34,9 @@
       "@uicpharm/standardization": "github:uicpharm/standardization#0.4.1",
       "@uicpharm/vitepress-theme": "github:uicpharm/vitepress-theme#1.0.0",
       "concurrently": "^8.2.2",
-      "gulp": "4.0.2",
+      "gulp": "5.0.0",
       "gulp-touch-fd": "2.0.0",
       "merge-stream": "2.0.0",
-      "vite-plugin-static-copy": "1.0.4"
+      "vite-plugin-static-copy": "1.0.6"
    }
 }
