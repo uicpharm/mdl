@@ -31,7 +31,7 @@
    },
    "homepage": "https://github.com/uicpharm/moodle#readme",
    "devDependencies": {
-      "@uicpharm/standardization": "github:uicpharm/standardization#0.4.0",
+      "@uicpharm/standardization": "github:uicpharm/standardization#0.4.1",
       "@uicpharm/vitepress-theme": "github:uicpharm/vitepress-theme#1.0.0",
       "concurrently": "^8.2.2",
       "gulp": "4.0.2",
