@@ -8,3 +8,4 @@ environments/**/backup.sql
 environments/**/data
 environments/**/src
 node_modules
+test*
