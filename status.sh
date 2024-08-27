@@ -1,7 +1,6 @@
 #!/bin/bash
 
 scr_dir="${0%/*}"
-backup_dir="$scr_dir/backup"
 envs_dir=$(realpath -q "$scr_dir/environments")
 mnames=$("$scr_dir/select-env.sh" "${1:-all}")
 norm="$(tput sgr0)"
@@ -14,8 +13,6 @@ ok=true
 for mname in $mnames; do
 
    running="$(docker ps -q -f name="$mname")"
-   labels="$(find "$backup_dir" -name "${mname}_*_src.*" | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
-   fast_labels=$(find "$backup_dir" -name "${mname}_*_dbfiles.tar" | cut -d"_" -f2- | sed -e "s/_dbfiles.tar//" | sort)
    data_dir="$envs_dir/$mname/data"
    src_dir="$envs_dir/$mname/src"
    db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
@@ -39,22 +36,8 @@ for mname in $mnames; do
    echo "  - $data_dir ($data_status$norm)"
    echo "  - $src_dir ($src_status$norm)"
    echo "  - $db_vol_name ($db_status$norm)"
-   # Normal Backups
-   if [ -z "$labels" ]; then
-      echo "Backups: none"
-   else
-      echo "Backups:"
-      for label in $labels; do
-         echo "  - $label"
-      done
-   fi
-   # Fast Database Backups
-   if [ -n "$fast_labels" ]; then
-      echo "Fast Database Backups:"
-      for label in $fast_labels; do
-         echo "  - $label"
-      done
-   fi
+   # List Backups
+   "$scr_dir/ls.sh" "$mname"
    # If running, the services list
    if [ -n "$running" ]; then
       echo
