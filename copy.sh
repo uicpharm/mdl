@@ -1,0 +1,189 @@
+#!/bin/bash
+
+scr_dir="$(realpath "${0%/*}")"
+backup_dir="$scr_dir/backup"
+
+# Formatting
+norm="$(tput sgr0)"
+ul="$(tput smul)"
+rmul=$(tput rmul)
+bold=$(tput bold)
+red=$(tput setaf 1)
+
+# Valid Options
+valid_modules='src data db'
+valid_type='backup fastdb'
+
+# Defaults
+type='backup fastdb'
+modules='src data db'
+remove=false
+box=false
+dry_run=false
+verbose=false
+
+# Help
+display_help() {
+   cat <<EOF
+Usage: ${0##*/} <ENV> <LABEL> [DEST] [OPTIONS]
+
+Copies a Moodle backup from the local environment to another destination. This
+can include a local system path, a remote server via scp, or even Box.com.
+
+Options:
+-h, --help      Show this help message and exit.
+-t, --type      The type of backup to copy. ($(echo "${valid_type}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
+-m, --modules   Which module to copy. ($(echo "${valid_modules}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
+-r, --rm        Remove the source backup after copying.
+-b, --box       Copy the backup to Box using credentials stored in .env file.
+-n, --dry-run   Show what would've happened without executing.
+-v, --verbose   Provide more verbose output.
+EOF
+}
+
+# Positional parameter #1: Environment
+if [[ $1 == -* || -z $1 ]]; then
+   [[ $1 == -h || $1 == --help ]] || echo -e "${red}You MUST provide the environment.$norm\n" >&2
+   display_help; exit 1;
+else
+   mnames=$("$scr_dir/select-env.sh" "$1")
+   shift
+fi
+
+# Positional parameter #2: Label
+if [[ $1 == -* || -z $1 ]]; then
+   echo -e "${red}You MUST provide the backup label to copy.$norm\n" >&2
+   display_help; exit 1;
+else
+   label="$1"
+   shift
+fi
+
+# Positional parameter #3: Destination
+if [[ $1 != -* && -n $1 ]]; then
+   dest=$(realpath "$1") || exit 1
+   shift
+fi
+
+# Collect optional arguments. spellchecker: disable-next-line.
+while getopts hrbvnt:m:-: OPT; do
+   # Support long options. Ref: https://stackoverflow.com/a/28466267/519360
+   if [ "$OPT" = "-" ]; then
+      OPT="${OPTARG%%=*}"       # extract long option name
+      OPTARG="${OPTARG#"$OPT"}" # extract long option argument (may be empty)
+      OPTARG="${OPTARG#=}"      # if long option argument, remove assigning `=`
+   fi
+   case "$OPT" in
+      h | help)
+         display_help
+         exit 0
+         ;;
+      r | rm) remove=true ;;
+      b | box) box=true ;;
+      v | verbose) verbose=true ;;
+      n | dry-run) dry_run=true ;;
+      t | type) type="${OPTARG//,/ }" ;;
+      m | modules) modules=$(echo "${OPTARG//,/ }" | tr '[:upper:]' '[:lower:]') ;;
+      \?) echo "${red}Invalid option: -$OPT$norm" >&2 ;;
+      *) echo "${red}Some of these options are invalid:$norm $*" >&2; exit 2 ;;
+   esac
+done
+shift $((OPTIND - 1))
+
+#
+# Calculations
+#
+
+# Clear the modules if type doesn't include "backup"
+[[ $type != *backup* ]] && modules=''
+
+#
+# Validation
+#
+
+# Must either have a valid destination or indicate "box" flag.
+if [[ -z $dest ]] && ! $box; then
+   echo "${red}${bold}You MUST provide a destination or send to Box with $ul--box$norm." >&2
+   exit 1
+fi
+
+# If destination, it must be valid
+if [[ -n $dest ]]; then
+   dest=$(realpath "$dest") || exit 1
+fi
+
+# Only valid modules
+for m in $modules; do
+   if [[ ! "$valid_modules" =~ $m ]]; then
+      echo -e "${red}${bold}Invalid module type: $m.$norm\n" >&2
+      exit 1
+   fi
+done
+
+# Only valid types
+for t in $type; do
+   if  [[ ! "$valid_type" =~ $t ]]; then
+      echo  -e  "${red}${bold}Invalid type of backup to copy: $t.$norm\n" >&2
+      exit 1
+   fi
+done
+
+for mname in $mnames; do
+
+   # Collect list of applicable files
+   files=()
+   [[ $type =~ fastdb ]] && fastdb_modules='dbfiles'
+   desired_modules="$modules $fastdb_modules"
+   for m in $desired_modules; do
+      while IFS= read -r -d '' file; do
+         files+=( "$file" )
+      done < <(find "$backup_dir" -name "${mname}_${label}_$m.*" -print0)
+   done
+
+   #
+   # Per environment validation
+   #
+
+   # Some source files must be found
+   if [[ ${#files[@]} -eq 0 ]]; then
+      echo "${red}${bold}No backups were found for $mname with label $ul$label$rmul.$norm" >&2
+      exit 1
+   fi
+
+   $box && dest_readable="Box.com" || dest_readable="destination"
+   echo "${ul}${bold}Copying $mname backup $label to $dest_readable$norm"
+   if $verbose; then
+      echo
+      [[ -n $type ]] && echo "${bold}  Types:$norm $type"
+      [[ -n $modules ]] && echo "${bold}Modules:$norm $modules"
+      [[ -n $dest ]] && echo "${bold}   Dest:$norm $dest"
+      $box && echo "${bold}   Dest:$norm Box.com"
+      echo "${bold} Remove:$norm $remove (after successful copy)"
+      echo
+   fi
+
+   if $box; then
+      for file in "${files[@]}"; do
+         filename=$(basename "$file")
+         cmd="$scr_dir/box.sh $mname upload $file"
+         $verbose && cmd="$cmd -v"
+         $verbose && echo "$cmd"
+         if $dry_run; then
+            echo "${red}Upload of $ul$filename$rmul skipped because this is a dry run.$norm"
+         else
+            eval "$cmd"
+            if ! $verbose; then echo "$file"; fi
+         fi
+      done
+   else
+      for file in "${files[@]}"; do
+         filename=$(basename "$file")
+         cmd="cp -v $file $dest/$filename"
+         $remove && cmd="$cmd && rm $file"
+         $verbose && echo "$cmd"
+         $dry_run && echo "${red}Copy of $ul$filename$rmul skipped because this is a dry run.$norm"
+         $dry_run || eval "$cmd"
+      done
+   fi
+
+done
