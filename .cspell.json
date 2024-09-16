@@ -11,6 +11,7 @@
    "enableFiletypes": ["*"],
    "dictionaries": ["proj-custom-words"],
    "ignorePaths": [
+      "environments/**/package.json",
       "**/*.diff"
    ]
 }
