@@ -1,13 +1,7 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
-envs_dir=$(realpath -q "$scr_dir/environments")
+. "${0%/*}/util/common.sh"
 mnames=$("$scr_dir/select-env.sh" "${1:-all}")
-norm="$(tput sgr0)"
-ul="$(tput smul)"
-bold="$(tput bold)"
-red="$(tput setaf 1)"
-green="$(tput setaf 2)"
 ok=true
 
 for mname in $mnames; do

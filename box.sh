@@ -1,13 +1,6 @@
 #!/bin/bash
 
-scr_dir="$(realpath "${0%/*}")"
-
-# Formatting
-norm="$(tput sgr0)"
-ul="$(tput smul)"
-rmul=$(tput rmul)
-bold=$(tput bold)
-red=$(tput setaf 1)
+. "${0%/*}/util/common.sh"
 
 # Validation
 valid_action='auth refresh list ls upload'
@@ -21,7 +14,7 @@ verbose=false
 # Help
 display_help() {
    cat <<EOF
-Usage: ${0##*/} <ENV> <ACTION> [file]
+Usage: $(script_name) <ENV> <ACTION> [file]
 
 Handles file access to Box.com as online storage for backups.
 
@@ -61,14 +54,11 @@ if [[ $1 != -* && -n $1 ]]; then
    shift
 fi
 
-# Collect optional arguments. spellchecker: disable-next-line.
+# Collect optional arguments.
+# shellcheck disable=SC2214
+# spellchecker: disable-next-line
 while getopts hjvn-: OPT; do
-   # Support long options. Ref: https://stackoverflow.com/a/28466267/519360
-   if [ "$OPT" = "-" ]; then
-      OPT="${OPTARG%%=*}"       # extract long option name
-      OPTARG="${OPTARG#"$OPT"}" # extract long option argument (may be empty)
-      OPTARG="${OPTARG#=}"      # if long option argument, remove assigning `=`
-   fi
+   support_long_options
    case "$OPT" in
       h | help)
          display_help

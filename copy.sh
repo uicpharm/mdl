@@ -1,14 +1,6 @@
 #!/bin/bash
 
-scr_dir="$(realpath "${0%/*}")"
-backup_dir="$scr_dir/backup"
-
-# Formatting
-norm="$(tput sgr0)"
-ul="$(tput smul)"
-rmul=$(tput rmul)
-bold=$(tput bold)
-red=$(tput setaf 1)
+. "${0%/*}/util/common.sh"
 
 # Valid Options
 valid_modules='src data db'
@@ -25,7 +17,7 @@ verbose=false
 # Help
 display_help() {
    cat <<EOF
-Usage: ${0##*/} <ENV> <LABEL> [DEST] [OPTIONS]
+Usage: $(script_name) <ENV> <LABEL> [DEST] [OPTIONS]
 
 Copies a Moodle backup from the local environment to another destination. This
 can include a local system path, a remote server via scp, or even Box.com.
@@ -65,14 +57,11 @@ if [[ $1 != -* && -n $1 ]]; then
    shift
 fi
 
-# Collect optional arguments. spellchecker: disable-next-line.
+# Collect optional arguments.
+# shellcheck disable=SC2214
+# spellchecker: disable-next-line
 while getopts hrbvnt:m:-: OPT; do
-   # Support long options. Ref: https://stackoverflow.com/a/28466267/519360
-   if [ "$OPT" = "-" ]; then
-      OPT="${OPTARG%%=*}"       # extract long option name
-      OPTARG="${OPTARG#"$OPT"}" # extract long option argument (may be empty)
-      OPTARG="${OPTARG#=}"      # if long option argument, remove assigning `=`
-   fi
+   support_long_options
    case "$OPT" in
       h | help)
          display_help

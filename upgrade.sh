@@ -1,7 +1,6 @@
 #!/bin/bash
 
-scr_dir="$(realpath "${0%/*}")"
-envs_dir="$scr_dir/environments"
+. "${0%/*}/util/common.sh"
 mnames=$("$scr_dir/select-env.sh" "$1")
 targetbranch="$2"
 

@@ -1,7 +1,6 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
-envs_dir="$scr_dir/environments"
+. "${0%/*}/util/common.sh"
 mname=$("$scr_dir/select-env.sh" "$1" --no-all)
 branchver="0"
 if [ -d "$envs_dir/$mname/src" ]; then

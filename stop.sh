@@ -1,7 +1,6 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
-envs_dir="$scr_dir/environments"
+. "${0%/*}/util/common.sh"
 activemname=$("$scr_dir/active-env.sh")
 mnames=$("$scr_dir/select-env.sh" "${1:-$activemname}")
 [[ $(docker --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false

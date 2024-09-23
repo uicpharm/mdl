@@ -1,8 +1,6 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
-envs_dir=$(realpath "$scr_dir/environments")
-backup_dir=$(realpath "$scr_dir/backup")
+. "${0%/*}/util/common.sh"
 
 # Parameter #1: Environment
 mnames=$("$scr_dir/select-env.sh" "$1")

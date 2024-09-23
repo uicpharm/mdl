@@ -7,8 +7,7 @@
 # You don't need to use/benefit from this. If you create a .env file before you begin, it
 # will just be used. But this check makes sure things work as simply as possible.
 
-scr_dir="${0%/*}"
-envs_dir="$scr_dir/environments"
+. "${0%/*}/util/common.sh"
 mname=$("$scr_dir"/select-env.sh "$1" --no-all)
 env_path="$envs_dir/$mname/.env"
 

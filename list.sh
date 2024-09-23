@@ -1,12 +1,6 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
-backup_dir="$scr_dir/backup"
-
-# Formatting
-norm="$(tput sgr0)"
-ul="$(tput smul)"
-bold="$(tput bold)"
+. "${0%/*}/util/common.sh"
 
 # Defaults
 quiet=false
@@ -15,7 +9,7 @@ type='backup fastdb' # Word list of types
 # Help
 display_help() {
    cat <<EOF
-Usage: ${0##*/} <ENV> [OPTIONS]
+Usage: $(script_name) <ENV> [OPTIONS]
 
 List available backups.
 
@@ -34,14 +28,10 @@ else
    shift
 fi
 
-# Collect optional arguments
+# Collect optional arguments.
+# shellcheck disable=SC2214
 while getopts hqt:-: OPT; do
-   # Support long options. Ref: https://stackoverflow.com/a/28466267/519360
-   if [ "$OPT" = "-" ]; then
-      OPT="${OPTARG%%=*}"       # extract long option name
-      OPTARG="${OPTARG#"$OPT"}" # extract long option argument (may be empty)
-      OPTARG="${OPTARG#=}"      # if long option argument, remove assigning `=`
-   fi
+   support_long_options
    case "$OPT" in
       q | quiet) quiet=true ;;
       # They can pass multiple type values as "one two" or "one,two". We sub "," to " ".

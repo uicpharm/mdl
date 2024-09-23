@@ -1,7 +1,6 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
-backup_dir="$scr_dir/backup"
+. "${0%/*}/util/common.sh"
 mnames=$("$scr_dir/select-env.sh" "$1")
 
 echo '
