@@ -3,13 +3,15 @@
 scr_dir="${0%/*}"
 envs_dir="$scr_dir/environments"
 mnames=$("$scr_dir/select-env.sh" "$1")
+follow=false
 wait=false
 [[ $(docker --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false
 
 for arg in "$@"; do
-   if [ "$arg" == "--wait" ]; then
+   if [[ $arg == --wait || $arg == -w ]]; then
       wait=true
-      break
+   elif [[ $arg == --follow || $arg == -f ]]; then
+      follow=true
    fi
 done
 
@@ -24,7 +26,7 @@ for mname in $mnames; do
    $IS_PODMAN && podman_args=('--podman-run-args' "--pod $mname")
    (cd "$scr_dir" && docker-compose "${podman_args[@]}" -f "$docker_compose_path" up -d)
 
-   if [ "$wait" == true ]; then
+   if $wait; then
       # Do not exit until environment is fully running
       echo -n "Waiting for $mname to fully start up"
       moodle_check=''
@@ -36,6 +38,9 @@ for mname in $mnames; do
          [ -z "$moodle_check" ] && sleep 6
       done
       echo ' Done!'
+   fi
+   if $follow; then
+      "$scr_dir/logs.sh" "$mname" -f
    fi
 
 done
