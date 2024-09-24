@@ -37,6 +37,7 @@
       "gulp": "5.0.0",
       "gulp-touch-fd": "2.0.0",
       "merge-stream": "2.0.0",
+      "strip-ansi": "7.1.0",
       "vite-plugin-static-copy": "1.0.6"
    }
 }
