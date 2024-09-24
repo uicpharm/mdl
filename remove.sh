@@ -2,6 +2,28 @@
 
 . "${0%/*}/util/common.sh"
 
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV> [LABEL]
+
+Deletes/removes files for a given Moodle environment. If you specify a backup label, it
+will remove the backup set instead of the Moodle environment itself.
+
+Options:
+-h, --help         Show this help message and exit.
+
+$ul${bold}Examples$norm
+
+Remove a Moodle environment:
+   $bold$(script_name) \$mname$norm
+
+Remove just this backup set for the Moodle environment:
+   $bold$(script_name) \$mname 20240920$norm
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 # Parameter #1: Environment
 mnames=$("$scr_dir/select-env.sh" "$1")
 [[ $1 == all || $1 == "$mnames" ]] && shift

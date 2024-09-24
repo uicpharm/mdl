@@ -1,6 +1,21 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
+. "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV>
+
+Finds an environment's ${ul}config.php$rmul file and updates it with the values found in the
+environment's $ul.env$rmul file.
+
+Options:
+-h, --help      Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mnames=$("$scr_dir/select-env.sh" "$1")
 
 for mname in $mnames; do

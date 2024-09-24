@@ -1,9 +1,22 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
-envs_dir="$scr_dir/environments"
+. "${0%/*}/util/common.sh"
 running=''
 runcnt=0
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name)
+
+Returns which environment is active currently. Only returns an answer if there is a
+single active environment.
+
+Options:
+-h, --help      Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
 for dir in "$envs_dir"/*/
 do

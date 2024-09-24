@@ -1,8 +1,23 @@
 #!/bin/bash
 
-scr_dir="$(dirname "${BASH_SOURCE[0]}")"
+. "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV>
+
+Handles all the tasks of loading values from $ul.env$rmul so they are accessible to other
+scripts, including doing the initial touch of the .env file, updating configs, clearing
+out existing values, and finally, loading the new values.
+
+Options:
+-h, --help      Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mname=$("$scr_dir/select-env.sh" "$1" --no-all)
-envs_dir="$scr_dir/environments"
 env_dir="$envs_dir/$mname"
 
 export mname

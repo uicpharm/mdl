@@ -1,13 +1,22 @@
 #!/bin/bash
 
-# This will `touch` the .env file to make sure it exists, and populate required values.
-# There can be more values, but it populates the required values that scripts expect to
-# see. It will be called by any script that does `source` on the .env file.
-#
-# You don't need to use/benefit from this. If you create a .env file before you begin, it
-# will just be used. But this check makes sure things work as simply as possible.
-
 . "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV>
+
+Like the ${ul}touch$rmul command in Linux, this script ensures a .env file exists for an
+environment. It also populates required settings in the file if they don't exist. Used
+internally by other scripts to ensure an adequate .env file is present.
+
+Options:
+-h, --help      Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mname=$("$scr_dir"/select-env.sh "$1" --no-all)
 env_path="$envs_dir/$mname/.env"
 

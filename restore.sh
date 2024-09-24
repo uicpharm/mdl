@@ -1,6 +1,21 @@
 #!/bin/bash
 
 . "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV> [LABEL]
+
+Restores a backup in the ${ul}backup$rmul folder to a local Moodle environment. This
+includes updating the config file for the Docker environment.
+
+Options:
+-h, --help         Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mnames=$("$scr_dir/select-env.sh" "$1")
 
 for mname in $mnames; do

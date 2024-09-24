@@ -11,7 +11,7 @@ display_help() {
    cat <<EOF
 Usage: $(script_name) <ENV> [OPTIONS]
 
-List available backups.
+Lists available backup sets for a Moodle environment.
 
 Options:
 -h, --help      Show this help message and exit.

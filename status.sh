@@ -1,6 +1,21 @@
 #!/bin/bash
 
 . "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV>
+
+Report the status of Moodle environment(s). Are they running? If so, what are their
+service names and IDs and data paths? What backup sets do they have?
+
+Options:
+-h, --help         Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mnames=$("$scr_dir/select-env.sh" "${1:-all}")
 ok=true
 

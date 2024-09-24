@@ -1,7 +1,24 @@
 #!/bin/bash
 
+. "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV>
+
+Used by other scripts to verify a passed in Moodle environment, and interactively ask the
+user to select an environment if a valid one is not passed in. So, if you request a
+non-existent environment or don't pass an environment, it will give a selection list for
+the user to select their environment.
+
+Options:
+-h, --help      Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 # Calculate all environments in the environments directory (just the local directory name)
-envs_dir="${0%/*}/environments"
 envs=()
 for d in "$envs_dir"/*/; do
    envs+=("$(basename "$d")")

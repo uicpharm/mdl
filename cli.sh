@@ -1,9 +1,39 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
+. "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV> <COMMAND> [ARGS...]
+
+Executes a Moodle CLI command in the environment you specify. You don't have to provide
+the .php extension of the script you want to run.
+
+Options:
+-h, --help         Show this help message and exit.
+-i, --interactive  Enable interactive mode while executing the command.
+
+$bold${ul}Examples$norm
+
+Enable maintenance mode:
+   $bold$(script_name) \$mname maintenance --enable$norm
+
+Disable maintenance mode:
+   $bold$(script_name) \$mname maintenance --disable$norm
+
+Reset password:
+   $bold$(script_name) -i \$mname reset_password$norm
+
+Purge cache:
+   $bold$(script_name) \$mname purge_caches$norm
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 paramI=''
 for arg in "$@"; do
-   if [ "$arg" = "-i" ]; then
+   if [[ $arg == -i || $arg == --interactive ]]; then
       paramI='-i'
       shift
       break

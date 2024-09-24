@@ -1,6 +1,27 @@
 #!/bin/bash
 
 . "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV> [TARGETBRANCH]
+
+Upgrades the Moodle environment to the desired Moodle version. It can also be used to
+pull down the latest hot fixes of the current version you're on if you just select the
+same version.
+
+Note this script technically just cleans up and fast forwards to the Git branch for the
+version you specify, then reapplies any existing customizations. When the instance is
+started up, Moodle will auto-upgrade the rest of its environment when it detects the new
+source code.
+
+Options:
+-h, --help         Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mnames=$("$scr_dir/select-env.sh" "$1")
 targetbranch="$2"
 

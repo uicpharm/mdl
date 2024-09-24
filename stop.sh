@@ -1,6 +1,20 @@
 #!/bin/bash
 
 . "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV>
+
+Stop a Moodle environment(s).
+
+Options:
+-h, --help         Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 activemname=$("$scr_dir/active-env.sh")
 mnames=$("$scr_dir/select-env.sh" "${1:-$activemname}")
 [[ $(docker --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false

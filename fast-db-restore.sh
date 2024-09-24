@@ -1,6 +1,23 @@
 #!/bin/bash
 
 . "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV> [LABEL]
+
+Restores a fast database backup, just overwriting the raw database files. $bold${red}This is unsafe
+for production.$norm However, it can make the development cycle of restoring to a previous
+state much faster; whereas you do need to restart the environment, the database will
+start up instantaneously since it doesn't have to import a database dump file.
+
+Options:
+-h, --help         Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mnames=$("$scr_dir/select-env.sh" "$1")
 
 echo '

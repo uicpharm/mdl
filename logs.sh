@@ -1,6 +1,21 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
+. "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV>
+
+Displays logs for all services for a given Moodle environment.
+
+Options:
+-h, --help         Show this help message and exit.
+-f, --follow       Follow the logs in real time.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 activemname=$("$scr_dir/active-env.sh")
 mname=$("$scr_dir/select-env.sh" "${1:-$activemname}" --no-all)
 

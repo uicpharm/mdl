@@ -1,6 +1,29 @@
 #!/bin/bash
 
-scr_dir="${0%/*}"
+. "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV> <SQL FILE OR COMMAND>
+
+Executes a SQL script in the container you specify. This makes it easy to execute a SQL
+script without needing to make a connection to the MariaDB database with a SQL client.
+
+Options:
+-h, --help         Show this help message and exit.
+
+$bold${ul}Examples$norm
+
+Execute a SQL file:
+   $bold$(script_name) \$mname /path/to/file.sql$norm
+
+Execute a SQL statement from a string:
+   $bold$(script_name) \$mname "select id, username, email from mdl_user limit 5"$norm
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mnames=$("$scr_dir"/select-env.sh "$1")
 
 for mname in $mnames; do

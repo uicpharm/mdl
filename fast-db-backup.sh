@@ -1,6 +1,26 @@
 #!/bin/bash
 
 . "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV> [LABEL]
+
+Makes a fast database backup, which is just a tar archive of the raw database files. The
+reason this is fast is because the archive process is faster than a database dump, and
+because the restore process directly restores the database files, as opposed to the
+traditional restore which saves the dump in the environment and requires the dump to be
+processed by the database container on startup.
+$bold$red
+This is unsafe for production but often works fine for development purposes.
+$norm
+Options:
+-h, --help         Show this help message and exit.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mnames=$("$scr_dir"/select-env.sh "$1")
 
 echo '

@@ -1,6 +1,22 @@
 #!/bin/bash
 
 . "${0%/*}/util/common.sh"
+
+display_help() {
+   cat <<EOF
+Usage: $(script_name) <ENV>
+
+Starts a Moodle environment.
+
+Options:
+-h, --help         Show this help message and exit.
+-w, --wait         Pause until the environment fully starts.
+-f, --follow       Jump into the environment's logs after starting.
+EOF
+}
+
+[[ $* =~ -h || $* =~ --help ]] && display_help && exit
+
 mnames=$("$scr_dir/select-env.sh" "$1")
 follow=false
 wait=false
