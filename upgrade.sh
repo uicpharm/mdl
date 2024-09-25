@@ -41,7 +41,7 @@ for mname in $mnames; do
    git fetch -np
 
    # Remove any untracked code
-   git stash push -u
+   git stash save -u
    git reset --hard
    git clean -dfe local
    curr_branch="$(git symbolic-ref --short HEAD)"
