@@ -156,6 +156,7 @@ for mname in $mnames; do
          filename=$(basename "$file")
          cmd="$scr_dir/box.sh $mname upload $file"
          $verbose && cmd="$cmd -v"
+         $remove && cmd="$cmd && rm $file"
          $verbose && echo "$cmd"
          if $dry_run; then
             echo "${red}Upload of $ul$filename$rmul skipped because this is a dry run.$norm"
