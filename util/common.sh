@@ -17,7 +17,7 @@ export green=$(tput setaf 2)
 
 function script_name() {
    # shellcheck disable=SC2046
-   local -r mdl=$(basename "$(readlink $(ps -o command -p $PPID))")
+   local -r mdl=$(basename "$(readlink -- $(ps -o command -p $PPID))")
    echo "$mdl $(basename -s ".${mdl:+sh}" "$0")"
 }
 
