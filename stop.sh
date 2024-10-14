@@ -29,9 +29,7 @@ for mname in $mnames; do
 
    echo "Stopping $mname..."
    . "$scr_dir/export-env.sh" "$mname"
-   # Ignore error if containers do not exist when podman tries to remove it
-   $IS_PODMAN && podman_args=('--podman-rm-args "-i"')
-   (cd "$scr_dir" && docker-compose "${podman_args[@]}" -f "$docker_compose_path" down "${@:2}")
+   (cd "$scr_dir" && docker-compose -f "$docker_compose_path" down "${@:2}")
    # Since we explicitly add the pod via script, we must explicitly remove it
    # shellcheck disable=SC2015
    $IS_PODMAN && docker pod exists "$mname" && podman pod rm -f "$mname" || true
