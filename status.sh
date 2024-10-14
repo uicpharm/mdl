@@ -51,7 +51,7 @@ for mname in $mnames; do
    if [ -n "$running" ]; then
       echo
       . "$scr_dir/export-env.sh" "$mname"
-      (cd "$scr_dir" && docker-compose -f "$docker_compose_path" ps)
+      (cd "$scr_dir" && docker-compose -f "$docker_compose_path" ps 2>/dev/null)
    fi
    echo
 
