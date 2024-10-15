@@ -33,3 +33,24 @@ function support_long_options() {
       OPTARG="${OPTARG#=}"      # if long option argument, remove assigning `=`
    fi
 }
+
+# Receives some content with fenced markers and replaces the content between the markers.
+#
+# Parameters:
+# - `original_content`: The content to be modified.
+# - `start_marker`: The marker that will start the replacement.
+# - `end_marker`: The marker that will end the replacement.
+# - `new_content`: The new content to put in the fenced area.
+replace_fenced_content() {
+   local original_content="$1"
+   local start_marker="$2"
+   local end_marker="$3"
+   local new_content="$4"
+   # Use awk to replace content between the comment tags
+   echo "$original_content" | awk -v new_content="$new_content" "
+   /$start_marker/ { print; print new_content; found=1; next }
+   /$end_marker/ { print; found=0; next }
+   found { next }
+   { print }
+   "
+}
