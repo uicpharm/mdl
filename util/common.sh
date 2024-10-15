@@ -15,12 +15,16 @@ export bold=$(tput bold)
 export red=$(tput setaf 1)
 export green=$(tput setaf 2)
 
+# Returns the name of the script, trying to factor in whether you called the script
+# directly or used the `mdl` script.
 function script_name() {
    # shellcheck disable=SC2046
    local -r mdl=$(basename "$(readlink -- $(ps -o command -p $PPID))")
    echo "$mdl $(basename -s ".${mdl:+sh}" "$0")"
 }
 
+# Adjusts the results from `getopts` to support long options. It will only support the
+# format `--long-option=value` or `--long-option`, not `--long-option value`.
 function support_long_options() {
    # Ref: https://stackoverflow.com/a/28466267/519360
    if [ "$OPT" = "-" ]; then
