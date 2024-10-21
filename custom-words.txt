@@ -46,6 +46,8 @@ enableanalytics
 enablebadges
 enableblogs
 enddate
+enrolid
+enrolments
 eventname
 externalpage
 fastdb
