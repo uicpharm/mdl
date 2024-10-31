@@ -28,10 +28,10 @@ export mname
 # We update configs every time just so updating .env will naturally update the environment as well.
 "$scr_dir/update-config.sh" "$mname"
 
-# Clear the settings with blank.env to avoid any data leaks
+# Clear the settings with blank.env to avoid any data leaks. Only look at UPPERCASE keys.
 # shellcheck disable=SC2046
-export $(grep -v '^#' "$envs_dir/blank.env" | xargs)
+export $(grep -E '^[A-Z_0-9]+=' "$envs_dir/blank.env" | xargs)
 
-# Load this env data
+# Load this env data. Only look at UPPERCASE keys.
 # shellcheck disable=SC2046
-export $(grep -v '^#' "$env_dir/.env" | xargs)
+export $(grep -E '^[A-Z_0-9]+=' "$env_dir/.env" | xargs)
