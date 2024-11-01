@@ -3,7 +3,7 @@
 . "${0%/*}/util/common.sh"
 
 # Validation
-valid_action='auth refresh list ls upload'
+valid_action='auth refresh list ls download upload'
 
 # Defaults
 file=''
@@ -14,7 +14,7 @@ verbose=false
 # Help
 display_help() {
    cat <<EOF
-Usage: $(script_name) <ENV> <ACTION> [file]
+Usage: $(script_name) <ENV> <ACTION> [file] [dest]
 
 Handles file access to Box.com as online storage for backups.
 
@@ -50,7 +50,13 @@ fi
 
 # Positional parameter #3: File
 if [[ $1 != -* && -n $1 ]]; then
-   file=$(realpath "$1") || exit 1
+   file=$1
+   shift
+fi
+
+# Positional parameter #4: Target
+if [[ $1 != -* && -n $1 ]]; then
+   targ=$1
    shift
 fi
 
@@ -60,10 +66,7 @@ fi
 while getopts hjvn-: OPT; do
    support_long_options
    case "$OPT" in
-      h | help)
-         display_help
-         exit 0
-         ;;
+      h | help) display_help; exit 0 ;;
       j | json) json=true ;;
       v | verbose) verbose=true ;;
       \?) echo "${red}Invalid option: -$OPT$norm" >&2 ;;
@@ -88,10 +91,17 @@ if [[ ! "$valid_action" =~ $action ]]; then
    exit 1
 fi
 
-# Must provide file for "upload" action
-if [[ $action == upload ]] && [[ -z $file ]]; then
-   echo "${red}${bold}For ${ul}upload$rmul action, you must provide a file." >&2
-   exit 1
+# Must provide valid file for "upload" action
+if [[ $action == upload ]]; then
+   [[ -z $file ]] && echo "${red}${bold}For ${ul}upload$rmul action, you must provide a file.$norm" >&2 && exit 1
+   file=$(realpath "$file") || exit 1 # It must be a real file with full path
+fi
+
+if [[ $action == download ]]; then
+   # Must provide a file for "download" action
+   [[ -z $file ]] && echo "${red}${bold}For ${ul}download$rmul action, you must provide a file or file ID.$norm" >&2 && exit 1
+   # Must provide a valid target for "download" action
+   [[ -z $targ ]] && echo "${red}${bold}For ${ul}download$rmul action, you must provide a target destination for the file.$norm" >&2 && exit 1
 fi
 
 # This function handles the process of calling curl on the Box.com API, with
@@ -104,7 +114,10 @@ function curl_api {
    local access_token
    access_token=$(cat "$access_token_file" 2>/dev/null || echo invalid_token)
    response=$(eval "curl $args -H 'Authorization: Bearer $access_token'")
-   if [[ -z $response ]] || echo "$response" | grep -q "invalid_token"; then
+   # If response is empty (and -o was not in the args), or...
+   # If response contains "invalid_token"...
+   # Refresh the token and try again.
+   if [[ ! $args == *"-o"* && -z $response ]] || echo "$response" | grep -q "invalid_token"; then
       $0 "$mname" refresh "$($verbose && echo '-v')"
       access_token=$(cat "$access_token_file" 2>/dev/null || echo 'invalid token')
       response=$(eval "curl $args -H 'Authorization: Bearer $access_token'")
@@ -198,6 +211,13 @@ for mname in $mnames; do
          echo "Failed to upload." >&2
          exit 1
       fi
+   elif [[ $action == download ]]; then
+      # Find the file. Search by name first, and if not found, search by ID.
+      files_json=$($0 "$mname" ls -j)
+      file_id=$(echo "$files_json" | jq -r --arg val "$file" '.entries[] | select(.name == $val) | .id')
+      [[ -z $file_id ]] && file_id=$(echo "$files_json" | jq -r --arg val "$file" '.entries[] | select(.id == $val) | .id')
+      [[ -z $file_id ]] && echo "${red}Could not find file $file.$norm" >&2 && exit 1
+      curl_api "$mname" "-L https://api.box.com/2.0/files/$file_id/content -o $targ"
    elif [[ $action == list ]] || [[ $action == ls ]]; then
       if $verbose; then echo "${bold}${ul}Files for $mname:$norm"; fi
       url="https://api.box.com/2.0/folders/$BOX_FOLDER_ID/items?fields=id,name,type,sequence_id"
