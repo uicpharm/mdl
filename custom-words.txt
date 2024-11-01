@@ -1,6 +1,7 @@
 Academi
 acentrus
 activemname
+activityinstance
 addinstance
 additionalhtmlhead
 altwwwroot
@@ -112,6 +113,7 @@ schedtasks
 settingpage
 shortcharvalue
 signup
+singlebutton
 sortorder
 startdate
 starttime
