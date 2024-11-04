@@ -78,7 +78,7 @@ shift $((OPTIND - 1))
 
 # Requires curl and jq utilities
 if [[ -z $(which curl) ]] || [[ -z $(which jq) ]]; then
-   echo "${red}${bold}This command requires ${ul}curl$rmul and ${ul}jq$rmul to work." >&2
+   echo "${red}${bold}This command requires ${ul}curl$rmul and ${ul}jq$rmul to work.$norm" >&2
    exit 1
 fi
 
@@ -124,7 +124,7 @@ for mname in $mnames; do
 
    # All Box environment variables must be set.
    for env_var in BOX_CLIENT_ID BOX_CLIENT_SECRET BOX_REDIRECT_URI BOX_FOLDER_ID; do
-      [ -z "${!env_var}" ] && echo "${red}Your env file must have $ul$env_var$rmul set." >&2 && exit 1
+      [ -z "${!env_var}" ] && echo "${red}Your env file must have $ul$env_var$rmul set.$norm" >&2 && exit 1
    done
 
    access_token_file="$scr_dir/environments/$mname/access_token.txt"
@@ -211,7 +211,7 @@ for mname in $mnames; do
          exit 1
       fi
    else
-      echo "${red}Invalid action: $action." >&2
+      echo "${red}Invalid action: $action.$norm" >&2
       exit 1;
    fi
 
