@@ -11,11 +11,13 @@ service names and IDs and data paths? What backup sets do they have?
 
 Options:
 -h, --help         Show this help message and exit.
+-b, --box          Include Box in the list of backup sets
 -q, --quiet        Quiet mode. Suppress normal output.
 EOF
 }
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
+[[ $* =~ -b || $* =~ --box ]] && mdl_ls_params=(-b) || mdl_ls_params=()
 [[ $* =~ -q || $* =~ --quiet ]] && quiet=true || quiet=false
 
 mnames=$("$scr_dir/select-env.sh" "${1:-all}")
@@ -52,7 +54,7 @@ for mname in $mnames; do
       echo "  - $sql_path ($sql_status$norm)"
       echo "  - $db_vol_name ($db_status$norm)"
       # List Backups
-      "$scr_dir/ls.sh" "$mname"
+      "$scr_dir/ls.sh" "$mname" "${mdl_ls_params[@]}"
       # If running, the services list
       if [ -n "$running" ]; then
          echo
