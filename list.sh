@@ -4,7 +4,9 @@
 
 # Defaults
 quiet=false
-type='backup fastdb' # Word list of types
+valid_type='backup fastdb box'
+default_type='backup fastdb'
+type=$default_type
 
 # Help
 display_help() {
@@ -15,8 +17,9 @@ Lists available backup sets for a Moodle environment.
 
 Options:
 -h, --help      Show this help message and exit.
+-b, --box       Add Box to the list of backups to list.
 -q, --quiet     Only list backup labels without pretty formatting.
--t, --type      The type of backups to list (${ul}backup$norm or ${ul}fastdb$norm).
+-t, --type      Type of backups to list, default: $ul${default_type// /$norm, $ul}$norm. ($ul${valid_type// /$norm, $ul}$norm)
 EOF
 }
 
@@ -30,12 +33,13 @@ fi
 
 # Collect optional arguments.
 # shellcheck disable=SC2214
-while getopts hqt:-: OPT; do
+while getopts hbqt:-: OPT; do # spellchecker: disable-line
    support_long_options
    case "$OPT" in
       q | quiet) quiet=true ;;
       # They can pass multiple type values as "one two" or "one,two". We sub "," to " ".
       t | type) type="${OPTARG//,/ }" ;;
+      b | box) type="$type box" ;;
       h | help) display_help; exit 0 ;;
       \?) echo "Invalid option: -$OPT" >&2 ;;
       *) echo "$*" >&2; exit 2 ;;
@@ -50,13 +54,14 @@ if $quiet && [[ $(echo "$type" | wc -w) -gt 1 || $(echo "$mnames" | wc -w) -gt 1
    >&2 echo "Error: When using $bold--quiet$norm, specify a single environment and a single type of backup."
    exit 1
 fi
-# Validate that type is "backup" or "fastdb". Any other value is invalid.
+# Only accept valid types
 for t in $type; do
-   [[ $t != 'backup' && $t != 'fastdb' ]] && >&2 echo "Error: Invalid backup type $ul$t$norm." && exit 1
+   [[ ! $valid_type =~ $t ]] && >&2 echo "Error: Invalid backup type $ul$t$norm." && exit 1
 done
 
 $quiet && list_prefix='' || list_prefix='  - '
 [[ $type == *backup* ]] && type_backup=true || type_backup=false
+[[ $type == *box* ]] && type_box=true || type_box=false
 [[ $type == *fastdb* ]] && type_fastdb=true || type_fastdb=false
 
 for mname in $mnames; do
@@ -67,6 +72,7 @@ for mname in $mnames; do
 
    # Collect the list of backups
    $type_backup && labels="$(find "$backup_dir" -name "${mname}_*_src.*" | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
+   $type_box && box_labels="$("$scr_dir/box.sh" "$mname" ls | awk -F'_' '$3 ~ /src/' | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
    $type_fastdb && fast_labels=$(find "$backup_dir" -name "${mname}_*_dbfiles.tar" | cut -d"_" -f2- | sed -e "s/_dbfiles.tar//" | sort)
 
    # Output: Normal Backups
@@ -75,6 +81,15 @@ for mname in $mnames; do
       [ -z "$labels" ] && echo 'none' || echo
    fi
    for label in $labels; do
+      echo "$list_prefix$label"
+   done
+
+   # Output: Box Backups
+   if $type_box && ! $quiet; then
+      echo -n "Box: "
+      [ -z "$box_labels" ] && echo 'none' || echo
+   fi
+   for label in $box_labels; do
       echo "$list_prefix$label"
    done
 
