@@ -54,3 +54,35 @@ replace_fenced_content() {
    { print }
    "
 }
+
+# Receives file path and decompresses it. Can detect bzip2, gzip and xz files. If none of
+# those extensions match the filename, it throws an error. After successful decompression,
+# the original file is deleted.
+#
+# Parameters:
+# - `file_path`: Path to file to be decompressed. Required.
+# - `out`: Path to output file. Defaults to file path without the compression extension.
+function decompress() {
+   local file_path=$1
+   local out=$2
+   local ext=${file_path##*.}
+   local cmd
+   # File path is required
+   [[ -z $file_path ]] && return 1
+   [[ $ext == bz2 ]] && cmd=bzip2
+   [[ $ext == gz ]] && cmd=gzip
+   [[ $ext == xz ]] && cmd=xz
+   if [[ -n $cmd ]]; then
+      # If they didn't provide an explicit output path, use file path sans extension
+      [[ -z $out ]] && out=${file_path%".$ext"}
+      # Attempt decompression. If successful, remove the original and return output path
+      if $cmd -d -c "$file_path" > "$out"; then
+         rm -f "$file_path"
+         echo "$out"
+         return 0
+      fi
+      return 3
+   fi
+   # If we got here, the file is not compressed. Throw an error.
+   return 2
+}
