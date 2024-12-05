@@ -15,8 +15,8 @@ export bold=$(tput bold)
 export red=$(tput setaf 1)
 export green=$(tput setaf 2)
 
-# Abort if user is not a superuser on Linux
-if [[ $EUID -ne 0 && $(uname) == 'Linux' ]]; then
+# Abort if user is not a superuser on Linux, unless they just want the help screen
+if [[ $EUID -ne 0 && $(uname) == 'Linux' && ! $* =~ -h && ! $* =~ --help ]]; then
    echo "${red}You must run mdl commands as a superuser.$norm" >&2
    exit 1
 fi
