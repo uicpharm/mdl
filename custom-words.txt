@@ -65,6 +65,7 @@ initdb
 inputname
 instanceid
 intvalue
+ISNULL
 jsordering
 lessonid
 lessontime
@@ -128,6 +129,7 @@ timecreated
 timeframe
 timemodified
 trashdir
+uicceofficegmail
 uniquevalues
 usecomments
 userid
