@@ -118,7 +118,7 @@ for mname in $mnames; do
    (
       # If the decompression fails, that probably means it isn't compressed.
       # Copy the original file instead.
-      if ! decompress "$backup_dir/$db_target" "$sql_path" > /dev/null; then
+      if ! decompress "$backup_dir/$db_target" "$sql_path" -k > /dev/null; then
          cp "$backup_dir/$db_target" "$sql_path"
       fi && \
       [ -n "$docker_id" ] && chown "$docker_id" "$sql_path"
