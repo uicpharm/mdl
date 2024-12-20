@@ -58,6 +58,7 @@ for mname in $mnames; do
       # If running, the services list
       if [ -n "$running" ]; then
          echo
+         . "$scr_dir/calc-images.sh" "$mname"
          . "$scr_dir/export-env.sh" "$mname"
          (cd "$scr_dir" && docker-compose -f "$docker_compose_path" ps 2>/dev/null)
       fi

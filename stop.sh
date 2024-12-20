@@ -28,6 +28,7 @@ for mname in $mnames; do
    docker_compose_path=$("$scr_dir/calc-docker-compose-path.sh" "$mname")
 
    echo "Stopping $mname..."
+   . "$scr_dir/calc-images.sh" "$mname"
    . "$scr_dir/export-env.sh" "$mname"
    (cd "$scr_dir" && docker-compose -f "$docker_compose_path" down "${@:2}")
    # Since we explicitly add the pod via script, we must explicitly remove it

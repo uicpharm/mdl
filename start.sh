@@ -34,6 +34,7 @@ for mname in $mnames; do
 
    docker_compose_path=$("$scr_dir/calc-docker-compose-path.sh" "$mname")
    echo "Starting $mname..."
+   . "$scr_dir/calc-images.sh" "$mname"
    . "$scr_dir/export-env.sh" "$mname"
 
    # Explicitly add the pod so it has its lifecycle container and the exact name we want
