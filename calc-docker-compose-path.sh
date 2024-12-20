@@ -16,7 +16,6 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mname=$("$scr_dir"/select-env.sh "$1" --no-all)
-branchver=$("$scr_dir/moodle-version.sh" "$mname")
-[[ "$branchver" -lt "401" ]] && ver=3.9.2 || ver=4.1.2
-realpath "$scr_dir/docker-compose-$ver.yml"
+# Right now, all configs can use the same `docker-compose.yml` file, but if that changes,
+# this script will inform scripts which file to use based on Moodle version.
+realpath "$scr_dir/docker-compose.yml"
