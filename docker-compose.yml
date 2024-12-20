@@ -1,11 +1,7 @@
 name: $mname
-networks:
-   backend:
-   frontend:
-      external: true
 services:
    mariadb:
-      image: ${MARIADB_IMAGE:-docker.io/bitnami/mariadb:10.3.37}
+      image: $MARIADB_IMAGE
       privileged: true
       restart: unless-stopped
       networks:
@@ -23,11 +19,13 @@ services:
          - './environments/$mname/backup.sql:/docker-entrypoint-initdb.d/restore-the-backup.sql:ro'
          - 'db:/bitnami/mariadb'
    moodle:
-      image: ${MOODLE_IMAGE:-docker.io/bitnami/moodle:3.9.2}
+      image: $MOODLE_IMAGE
       privileged: true
       command: [ "/opt/bitnami/scripts/moodle/run.sh" ]
       entrypoint: [ "custom-entrypoint.sh" ]
       restart: unless-stopped
+      ports:
+        - $MOODLE_PORT:8080
       depends_on:
          - mariadb
       networks:
@@ -46,6 +44,9 @@ services:
          - './customizations/scripts:/usr/local/bin:ro'
          - './environments/$mname/src:/bitnami/moodle'
          - './environments/$mname/data:/bitnami/moodledata'
-
+networks:
+   backend:
+   frontend:
+      external: true
 volumes:
    db:
