@@ -23,6 +23,14 @@ EOF
 [[ $* =~ -x || $* =~ --extract ]] && extract=true || extract=false
 [[ $* =~ -r || $* =~ --rm ]] && remove_when_done=true || remove_when_done=false
 
+# Check necessary utilities
+for cmd in tar bzip2 gzip xz; do
+   if [[ -z $(which "$cmd" 2>/dev/null) ]]; then
+      echo "${red}${bold}This command requires $ul$cmd$rmul to work.$norm" >&2
+      exit 1
+   fi
+done
+
 mnames=$("$scr_dir/select-env.sh" "$1")
 
 for mname in $mnames; do

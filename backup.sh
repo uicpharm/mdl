@@ -174,6 +174,16 @@ if [[ ! "$valid_compress" =~ $compress_arg ]]; then
    exit 1
 fi
 
+# Check necessary utilities
+cmds=tar
+[[ $compress_arg != none ]] && cmds="$cmds $compress_arg"
+for cmd in $cmds; do
+   if [[ -z $(which "$cmd" 2>/dev/null) ]]; then
+      echo "${red}${bold}This command requires $ul$cmd$rmul to work.$norm" >&2
+      exit 1
+   fi
+done
+
 for mname in $mnames; do
 
    # Reset these values to empty string or the originally set parameter
