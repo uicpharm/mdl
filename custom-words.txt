@@ -115,6 +115,7 @@ settingpage
 shortcharvalue
 signup
 singlebutton
+socat
 sortorder
 startdate
 starttime
