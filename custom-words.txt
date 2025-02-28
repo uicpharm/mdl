@@ -82,6 +82,7 @@ medicinece
 mform
 mindate
 mktemp
+mlang
 MMDD
 mnames
 moodledata
