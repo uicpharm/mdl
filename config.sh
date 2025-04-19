@@ -52,6 +52,11 @@ for mname in $mnames; do
       # Only set it if cfg.php says it is a valid configuration key
       get_value=$($cli "$mname" cfg --name="$key" 2>/dev/null) && key_exists=true || key_exists=false
       if $key_exists && ! $get_mode; then
+         # Remove surrounding quotes of the string in $value
+         if [[ $value == \'*\' || $value == \"*\" ]]; then
+            value="${value:1}"
+            value="${value%?}"
+         fi
          echo "$bold$key:$norm $value" >&2
          $cli "$mname" cfg --name="$key" --set="$value"
       elif $key_exists; then
