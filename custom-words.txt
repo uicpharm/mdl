@@ -47,6 +47,7 @@ elementname
 enableanalytics
 enablebadges
 enableblogs
+enabledashboard
 enddate
 enrolid
 enrolments
@@ -101,6 +102,7 @@ pharmacyce
 pharmce
 PIDJSON
 pluginname
+primarycolor
 profiledefaultdata
 profilefield
 providerid
@@ -113,10 +115,12 @@ roleid
 runcnt
 schedtask
 schedtasks
+secondarycolor
 settingpage
 shortcharvalue
 signup
 singlebutton
+sitenameintitle
 socat
 sortorder
 startdate
