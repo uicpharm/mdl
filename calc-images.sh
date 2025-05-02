@@ -18,6 +18,8 @@ versions=(
    "405     4.5.4    10.11.11"
    "500     5.0.0    10.11.11"
 )
+first_ver=${versions[0]%% *}
+last_ver=${versions[$((${#versions[@]} - 1))]%% *}
 
 display_help() {
    cat <<EOF
@@ -59,8 +61,8 @@ branchver=$("$scr_dir/moodle-version.sh" "$mname")
 
 # Handle defaults if an unexpected branch version is used
 assumed_branchver=$branchver
-[[ $branchver -lt 39 ]] && assumed_branchver=39
-[[ $branchver -gt 500 ]] && assumed_branchver=500
+(( branchver < first_ver )) && assumed_branchver=$first_ver
+(( branchver > last_ver )) && assumed_branchver=$last_ver
 
 for ver_string in "${versions[@]}"; do
    IFS=' ' read -ra var_array <<< "$ver_string"
