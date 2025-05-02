@@ -15,7 +15,8 @@ versions=(
    "402     4.2.11   10.11.11"
    "403     4.3.8    10.11.11"
    "404     4.4.4    10.11.11"
-   "405     4.5.2    10.11.11"
+   "405     4.5.4    10.11.11"
+   "500     5.0.0    10.11.11"
 )
 
 display_help() {
@@ -59,7 +60,7 @@ branchver=$("$scr_dir/moodle-version.sh" "$mname")
 # Handle defaults if an unexpected branch version is used
 assumed_branchver=$branchver
 [[ $branchver -lt 39 ]] && assumed_branchver=39
-[[ $branchver -gt 405 ]] && assumed_branchver=405
+[[ $branchver -gt 500 ]] && assumed_branchver=500
 
 for ver_string in "${versions[@]}"; do
    IFS=' ' read -ra var_array <<< "$ver_string"
