@@ -193,7 +193,7 @@ for mname in $mnames; do
       file_name=$(basename "$file")
       if $verbose; then echo "Uploading file $file"; fi
       # Check if this file already exists.
-      file_id=$($0 "$mname" ls -j | jq -r --arg val "$file_name" '.entries[] | select(.name == $val) | .id')
+      file_id=$($0 "$mname" ls -j | jq -r --arg val "$file_name" '.pages[].entries[] | select(.name == $val) | .id')
       url="https://upload.box.com/api/2.0/files"
       [[ -n $file_id ]] && url="$url/$file_id" && $verbose && echo "$file_name exists with ID $file_id. Uploading new version."
       url="$url/content"
@@ -214,22 +214,42 @@ for mname in $mnames; do
    elif [[ $action == download ]]; then
       # Find the file. Search by name first, and if not found, search by ID.
       files_json=$($0 "$mname" ls -j)
-      file_id=$(echo "$files_json" | jq -r --arg val "$file" '.entries[] | select(.name == $val) | .id')
+      file_id=$(echo "$files_json" | jq -r --arg val "$file" '.pages[].entries[] | select(.name == $val) | .id')
       [[ -z $file_id ]] && file_id=$(echo "$files_json" | jq -r --arg val "$file" '.entries[] | select(.id == $val) | .id')
       [[ -z $file_id ]] && echo "${red}Could not find file $file.$norm" >&2 && exit 1
       curl_api "$mname" "-L https://api.box.com/2.0/files/$file_id/content -o $targ"
    elif [[ $action == list ]] || [[ $action == ls ]]; then
       if $verbose; then echo "${bold}${ul}Files for $mname:$norm"; fi
-      url="https://api.box.com/2.0/folders/$BOX_FOLDER_ID/items?fields=id,name,type,sequence_id"
-      curl_args="-s -X GET $url -H 'Content-Type: application/json'"
-      response=$(curl_api "$mname" "$curl_args")
-      if [[ -n $response ]]; then
-         $json && echo "$response" | jq
-         $json || echo "$response" | jq -r '.entries[] | .name' | grep -E "^$mname"
-      else
-         echo "Failed to retrieve files or folder is empty." >&2
-         exit 1
-      fi
+      # Box.com limit is 1000. Even if we pick a larger number, it will set it to 1000.
+      limit=1000
+      offset=0
+      # We set offset to negative number to signal that we are done.
+      while (( offset >= 0 )); do
+         url="https://api.box.com/2.0/folders/$BOX_FOLDER_ID/items?fields=id,name,type,sequence_id&limit=$limit&offset=$offset"
+         curl_args="-s -X GET '$url' -H 'Content-Type: application/json'"
+         response=$(curl_api "$mname" "$curl_args")
+         if [[ -n $response ]]; then
+            # If output is json, we wrap the result in a `pages` array in case we have pagination.
+            $json && (( offset == 0 )) && echo '{"pages": ['
+            $json && (( offset > 0 )) && echo ','
+            # Since we do math with these values, we default to zero if they aren't found.
+            total_count=$(jq '.total_count // 0' <<< "$response")
+            limit=$(jq '.limit // 0' <<< "$response")
+            offset=$(jq '.offset // 0' <<< "$response")
+            $json && echo "$response" | jq
+            $json || echo "$response" | jq -r '.entries[] | .name' | grep -E "^$mname"
+            # If we haven't reached the total count, we set the offset and go again.
+            if (( offset + limit < total_count )); then
+               (( offset+=limit ))
+            else
+               $json && echo ']}'
+               offset=-1
+            fi
+         else
+            echo "Failed to retrieve files or folder is empty." >&2
+            exit 1
+         fi
+      done
    else
       echo "${red}Invalid action: $action.$norm" >&2
       exit 1;
