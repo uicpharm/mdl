@@ -95,6 +95,7 @@ fi
 if [[ $action == upload ]]; then
    [[ -z $file ]] && echo "${red}${bold}For ${ul}upload$rmul action, you must provide a file.$norm" >&2 && exit 1
    file=$(realpath "$file") || exit 1 # It must be a real file with full path
+   [[ -z $targ ]] && targ=$(basename "$file")
 fi
 
 if [[ $action == download ]]; then
@@ -193,11 +194,11 @@ for mname in $mnames; do
       file_name=$(basename "$file")
       if $verbose; then echo "Uploading file $file"; fi
       # Check if this file already exists.
-      file_id=$($0 "$mname" ls -j | jq -r --arg val "$file_name" '.pages[].entries[] | select(.name == $val) | .id')
+      file_id=$($0 "$mname" ls -j | jq -r --arg val "$targ" '.pages[].entries[] | select(.name == $val) | .id')
       url="https://upload.box.com/api/2.0/files"
-      [[ -n $file_id ]] && url="$url/$file_id" && $verbose && echo "$file_name exists with ID $file_id. Uploading new version."
+      [[ -n $file_id ]] && url="$url/$file_id" && $verbose && echo "$targ exists with ID $file_id. Uploading new version."
       url="$url/content"
-      curl_args="-X POST $url -F file=@'$file' -F attributes='{\"name\":\"$file_name\", \"parent\":{\"id\":\"$BOX_FOLDER_ID\"}}'"
+      curl_args="-X POST $url -F file=@'$file' -F attributes='{\"name\":\"$targ\", \"parent\":{\"id\":\"$BOX_FOLDER_ID\"}}'"
       $verbose || cmd="$cmd -s"
       response=$(curl_api "$mname" "$curl_args")
       if [[ -n $response ]]; then
@@ -206,7 +207,7 @@ for mname in $mnames; do
             echo "$red$msg$norm" >&2
             exit 1
          fi
-         if $verbose; then echo "Successfully uploaded $file_name with ID $(echo "$response" | jq -r '.entries[] | .id')."; fi
+         if $verbose; then echo "Successfully uploaded $file_name as $targ with ID $(echo "$response" | jq -r '.entries[] | .id')."; fi
       else
          echo "Failed to upload." >&2
          exit 1
