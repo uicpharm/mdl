@@ -26,6 +26,7 @@ Options:
 -h, --help      Show this help message and exit.
 -t, --type      The type of backup to copy. ($(echo "${valid_type}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
 -m, --modules   Which module to copy. ($(echo "${valid_modules}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
+-l, --label     Label to rename the new copy.
 -r, --rm        Remove the source backup after copying.
 -b, --box       Copy the backup to Box using credentials stored in .env file.
 -n, --dry-run   Show what would've happened without executing.
@@ -60,7 +61,7 @@ fi
 # Collect optional arguments.
 # shellcheck disable=SC2214
 # spellchecker: disable-next-line
-while getopts hrbvnt:m:-: OPT; do
+while getopts hrbvnl:t:m:-: OPT; do
    support_long_options
    case "$OPT" in
       h | help)
@@ -72,6 +73,7 @@ while getopts hrbvnt:m:-: OPT; do
       v | verbose) verbose=true ;;
       n | dry-run) dry_run=true ;;
       t | type) type="${OPTARG//,/ }" ;;
+      l | label) new_label=$OPTARG ;;
       m | modules) modules=$(echo "${OPTARG//,/ }" | tr '[:upper:]' '[:lower:]') ;;
       \?) echo "${red}Invalid option: -$OPT$norm" >&2 ;;
       *) echo "${red}Some of these options are invalid:$norm $*" >&2; exit 2 ;;
@@ -140,40 +142,47 @@ for mname in $mnames; do
    fi
 
    $box && dest_readable="Box.com" || dest_readable="destination"
-   echo "${ul}${bold}Copying $mname backup $label to $dest_readable$norm"
    if $verbose; then
+      echo "${ul}${bold}Copying $mname backup $label to $dest_readable$norm"
       echo
       [[ -n $type ]] && echo "${bold}  Types:$norm $type"
       [[ -n $modules ]] && echo "${bold}Modules:$norm $modules"
+      [[ -n $new_label ]] && echo "${bold} Rename:$norm $new_label"
       [[ -n $dest ]] && echo "${bold}   Dest:$norm $dest"
       $box && echo "${bold}   Dest:$norm Box.com"
       echo "${bold} Remove:$norm $remove (after successful copy)"
       echo
    fi
 
-   if $box; then
-      for file in "${files[@]}"; do
-         filename=$(basename "$file")
-         cmd="$scr_dir/box.sh $mname upload $file"
+   for file in "${files[@]}"; do
+      filename=$(basename "$file")
+      # Handle renaming label
+      if [[ -n $new_label ]] && [[ $label != "$new_label" ]]; then
+         new_filename=$(sed -E 's/([^_]+)_[^_]+_([^_]+)([.\w]+)/\1_'"$new_label"'_\2\3/' <<< "$filename")
+      else
+         new_filename=$filename
+      fi
+      # If destination is same as source, nothing to do here!
+      if [[ $file == "$dest/$new_filename" ]]; then
+         echo "${red}File $ul$file$rmul skipped because it is same as source." >&2
+         continue
+      fi
+      # Copy is different based on Box upload or filesystem copy
+      if $box; then
+         cmd="$scr_dir/box.sh $mname upload $file $new_filename"
          $verbose && cmd="$cmd -v"
-         $remove && cmd="$cmd && rm $file"
-         $verbose && echo "$cmd"
-         if $dry_run; then
-            echo "${red}Upload of $ul$filename$rmul skipped because this is a dry run.$norm"
-         else
-            eval "$cmd"
-            if ! $verbose; then echo "$file"; fi
-         fi
-      done
-   else
-      for file in "${files[@]}"; do
-         filename=$(basename "$file")
-         cmd="cp -v $file $dest/$filename"
-         $remove && cmd="$cmd && rm $file"
-         $verbose && echo "$cmd"
-         $dry_run && echo "${red}Copy of $ul$filename$rmul skipped because this is a dry run.$norm"
-         $dry_run || eval "$cmd"
-      done
-   fi
+         success_msg="$file → Box.com/$new_filename"
+      else
+         cmd="cp $file $dest/$new_filename"
+         success_msg="$file → $dest/$new_filename"
+      fi
+      $remove && cmd="$cmd && rm $file"
+      $verbose && echo "$cmd"
+      if $dry_run; then
+         echo "${red}Copy of $ul$filename$rmul skipped because this is a dry run.$norm"
+      else
+         eval "$cmd" && echo "$success_msg"
+      fi
+   done
 
 done
