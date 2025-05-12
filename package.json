@@ -31,13 +31,13 @@
    },
    "homepage": "https://github.com/uicpharm/moodle#readme",
    "devDependencies": {
-      "@uicpharm/standardization": "github:uicpharm/standardization#0.4.1",
+      "@uicpharm/standardization": "github:uicpharm/standardization#0.4.2",
       "@uicpharm/vitepress-theme": "github:uicpharm/vitepress-theme#1.0.1",
-      "concurrently": "^8.2.2",
+      "concurrently": "9.1.2",
       "gulp": "5.0.0",
       "gulp-touch-fd": "2.0.0",
       "merge-stream": "2.0.0",
       "strip-ansi": "7.1.0",
-      "vite-plugin-static-copy": "1.0.6"
+      "vite-plugin-static-copy": "3.0.0"
    }
 }
