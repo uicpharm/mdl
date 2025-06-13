@@ -1,3 +1,4 @@
+.git
 .env
 .vscode
 backup
@@ -5,3 +6,4 @@ environments/**/backup.sql
 environments/**/data
 environments/**/db
 environments/**/src
+node_modules
