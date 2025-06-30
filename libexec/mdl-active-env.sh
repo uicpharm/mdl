@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 running=''
 runcnt=0
 
@@ -18,7 +18,7 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-for dir in "$envs_dir"/*/
+for dir in "$MDL_ENVS_DIR"/*/
 do
    mname=$(basename "$dir")
    if docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep -q moodle; then

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 # Defaults
 quiet=false
@@ -25,9 +25,9 @@ EOF
 
 # Handle the first parameter, which should be the env (If not provided, assume "all").
 if [[ $1 == -* || -z "$1" ]]; then
-   mnames=$("$scr_dir/select-env.sh" all)
+   mnames=$("$scr_dir/mdl-select-env.sh" all)
 else
-   mnames=$("$scr_dir/select-env.sh" "$1")
+   mnames=$("$scr_dir/mdl-select-env.sh" "$1")
    shift
 fi
 
@@ -71,9 +71,9 @@ for mname in $mnames; do
    fi
 
    # Collect the list of backups
-   $type_backup && labels="$(find "$backup_dir" -name "${mname}_*_src.*" | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
-   $type_box && box_labels="$("$scr_dir/box.sh" "$mname" ls | awk -F'_' '$3 ~ /src/' | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
-   $type_fastdb && fast_labels=$(find "$backup_dir" -name "${mname}_*_dbfiles.tar" | cut -d"_" -f2- | sed -e "s/_dbfiles.tar//" | sort)
+   $type_backup && labels="$(find "$MDL_BACKUP_DIR" -name "${mname}_*_src.*" | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
+   $type_box && box_labels="$("$scr_dir/mdl-box.sh" "$mname" ls | awk -F'_' '$3 ~ /src/' | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
+   $type_fastdb && fast_labels=$(find "$MDL_BACKUP_DIR" -name "${mname}_*_dbfiles.tar" | cut -d"_" -f2- | sed -e "s/_dbfiles.tar//" | sort)
 
    # Output: Normal Backups
    if $type_backup && ! $quiet; then

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -25,7 +25,7 @@ EOF
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
 # Parameter #1: Environment
-mnames=$("$scr_dir/select-env.sh" "$1")
+mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 [[ $1 == all || $1 == "$mnames" ]] && shift
 
 # Parameter #2: Label, multiple can be provided
@@ -38,13 +38,13 @@ for mname in $mnames; do
       for label in $labels; do
          echo "Removing backup for $mname with label $label..."
          for file_type in src data db dbfiles; do
-            rm -fv "$backup_dir/${mname}_${label}_${file_type}".*
+            rm -fv "$MDL_BACKUP_DIR/${mname}_${label}_${file_type}".*
          done
       done
    else
       # Remove a moodle environment
       echo "Removing data for $mname environment..."
-      rm -Rf "$envs_dir/$mname/data" "$envs_dir/$mname/src" "$envs_dir/$mname/backup.sql"
+      rm -Rf "$MDL_ENVS_DIR/$mname/data" "$MDL_ENVS_DIR/$mname/src" "$MDL_ENVS_DIR/$mname/backup.sql"
       db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
       [ -n "$db_vol_name" ] && echo "Clearing the database Docker volume... $(docker volume rm "$db_vol_name")"
    fi

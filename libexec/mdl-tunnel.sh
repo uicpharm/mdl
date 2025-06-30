@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 # Validation
 valid_actions='start stop'
@@ -44,7 +44,7 @@ if [[ $1 == -* || -z $1 ]]; then
    [[ $1 == -h || $1 == --help ]] || echo -e "${red}You MUST provide the environment.$norm\n" >&2
    display_help; exit 1;
 else
-   mnames=$("$scr_dir/select-env.sh" "$1")
+   mnames=$("$scr_dir/mdl-select-env.sh" "$1")
    shift
 fi
 

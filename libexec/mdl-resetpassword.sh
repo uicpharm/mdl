@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -30,4 +30,4 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-"$scr_dir/cli.sh" -i "$1" reset_password "${@:2}"
+"$scr_dir/mdl-cli.sh" -i "$1" reset_password "${@:2}"

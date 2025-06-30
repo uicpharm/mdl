@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -16,14 +16,14 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mnames=$("$scr_dir/select-env.sh" "$1")
+mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 
 for mname in $mnames; do
 
-   env_dir="$scr_dir/environments/$mname"
+   env_dir="$MDL_ENVS_DIR/$mname"
    src_path="$env_dir/src"
-   # shellcheck source=environments/sample.env
-   "$scr_dir/touch-env.sh" "$mname" && source "$env_dir/../blank.env" && source "$env_dir/.env"
+   # shellcheck source=../environments/sample.env
+   "$scr_dir/mdl-touch-env.sh" "$mname" && source "$env_dir/../blank.env" && source "$env_dir/.env"
 
    # Get desired wwwroot value
    if [ -z "$WWWROOT" ]; then

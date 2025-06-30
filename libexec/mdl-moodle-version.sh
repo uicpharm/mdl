@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -17,10 +17,10 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mname=$("$scr_dir/select-env.sh" "$1" --no-all)
+mname=$("$scr_dir/mdl-select-env.sh" "$1" --no-all)
 branchver="0"
-if [ -d "$envs_dir/$mname/src" ]; then
-   cd "$envs_dir/$mname/src" || exit 1
+if [ -d "$MDL_ENVS_DIR/$mname/src" ]; then
+   cd "$MDL_ENVS_DIR/$mname/src" || exit 1
    branchver="$(git symbolic-ref --short HEAD | cut -d"_" -f2)"
 fi
 # If not numeric, set to zero.

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -24,7 +24,7 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mnames=$("$scr_dir"/select-env.sh "$1")
+mnames=$("$scr_dir"/mdl-select-env.sh "$1")
 
 for mname in $mnames; do
 
@@ -32,8 +32,8 @@ for mname in $mnames; do
    sql_is_file=false
    [ -f "$sql" ] && sql_is_file=true
 
-   # shellcheck source=environments/sample.env
-   . "$scr_dir/export-env.sh" "$mname"
+   # shellcheck source=../environments/sample.env
+   . "$scr_dir/mdl-export-env.sh" "$mname"
 
    # Get an existing moodle task on this node
    container="$(docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep mariadb | head -1)"

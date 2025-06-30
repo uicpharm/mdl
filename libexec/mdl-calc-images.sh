@@ -1,7 +1,7 @@
 #!/bin/bash
 #shellcheck disable=SC2059
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 port_chart_settings="%-15s %-8s\n"
 ver_chart_settings="%-9s %-11s %-11s\n"
@@ -43,7 +43,7 @@ environment variable named ${ul}MOODLE_PORT$rmul.
 $(
    printf "$ul$port_chart_settings$rmul" "Environment" "Port"
    num=8000
-   for dir in "$envs_dir"/*/; do
+   for dir in "$MDL_ENVS_DIR"/*/; do
       (( num++ ))
       printf "$port_chart_settings" "$(basename "$dir")" "$num"
    done
@@ -56,8 +56,8 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mname=$("$scr_dir"/select-env.sh "$1" --no-all)
-branchver=$("$scr_dir/moodle-version.sh" "$mname")
+mname=$("$scr_dir"/mdl-select-env.sh "$1" --no-all)
+branchver=$("$scr_dir/mdl-moodle-version.sh" "$mname")
 
 # Handle defaults if an unexpected branch version is used
 assumed_branchver=$branchver
@@ -78,7 +78,7 @@ export MOODLE_IMAGE="docker.io/bitnami/moodle:$moodle_ver"
 
 # Calculate Moodle port
 num=8000
-for dir in "$envs_dir"/*/; do
+for dir in "$MDL_ENVS_DIR"/*/; do
    (( num++ ))
    if [[ $(basename "$dir") == "$mname" ]]; then
       export MOODLE_PORT=$num

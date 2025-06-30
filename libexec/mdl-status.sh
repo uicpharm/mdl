@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -20,17 +20,17 @@ EOF
 [[ $* =~ -b || $* =~ --box ]] && mdl_ls_params=(-b) || mdl_ls_params=()
 [[ $* =~ -q || $* =~ --quiet ]] && quiet=true || quiet=false
 
-mnames=$("$scr_dir/select-env.sh" "${1:-all}")
+mnames=$("$scr_dir/mdl-select-env.sh" "${1:-all}")
 ok=true
 
 for mname in $mnames; do
 
    running="$(docker ps -q -f name="$mname")"
-   data_dir="$envs_dir/$mname/data"
-   src_dir="$envs_dir/$mname/src"
-   sql_path="$envs_dir/$mname/backup.sql"
+   data_dir="$MDL_ENVS_DIR/$mname/data"
+   src_dir="$MDL_ENVS_DIR/$mname/src"
+   sql_path="$MDL_ENVS_DIR/$mname/backup.sql"
    db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
-   docker_compose_path=$("$scr_dir/calc-docker-compose-path.sh" "$mname")
+   docker_compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
 
    $quiet || echo "${ul}Environment: $bold$mname$norm"
    # Status
@@ -54,13 +54,13 @@ for mname in $mnames; do
       echo "  - $sql_path ($sql_status$norm)"
       echo "  - $db_vol_name ($db_status$norm)"
       # List Backups
-      "$scr_dir/ls.sh" "$mname" "${mdl_ls_params[@]}"
+      "$scr_dir/mdl-ls.sh" "$mname" "${mdl_ls_params[@]}"
       # If running, the services list
       if [ -n "$running" ]; then
          echo
-         . "$scr_dir/calc-images.sh" "$mname"
-         . "$scr_dir/export-env.sh" "$mname"
-         (cd "$scr_dir" && docker-compose -f "$docker_compose_path" ps 2>/dev/null)
+         . "$scr_dir/mdl-calc-images.sh" "$mname"
+         . "$scr_dir/mdl-export-env.sh" "$mname"
+         docker-compose -f "$docker_compose_path" ps 2>/dev/null
       fi
       echo
    )

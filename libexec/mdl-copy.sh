@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 # Valid Options
 valid_modules='src data db'
@@ -39,7 +39,7 @@ if [[ $1 == -* || -z $1 ]]; then
    [[ $1 == -h || $1 == --help ]] || echo -e "${red}You MUST provide the environment.$norm\n" >&2
    display_help; exit 1;
 else
-   mnames=$("$scr_dir/select-env.sh" "$1")
+   mnames=$("$scr_dir/mdl-select-env.sh" "$1")
    shift
 fi
 
@@ -128,7 +128,7 @@ for mname in $mnames; do
    for m in $desired_modules; do
       while IFS= read -r -d '' file; do
          files+=( "$file" )
-      done < <(find "$backup_dir" -name "${mname}_${label}_$m.*" -print0)
+      done < <(find "$MDL_BACKUP_DIR" -name "${mname}_${label}_$m.*" -print0)
    done
 
    #
@@ -169,7 +169,7 @@ for mname in $mnames; do
       fi
       # Copy is different based on Box upload or filesystem copy
       if $box; then
-         cmd="$scr_dir/box.sh $mname upload $file $new_filename"
+         cmd="$scr_dir/mdl-box.sh $mname upload $file $new_filename"
          $verbose && cmd="$cmd -v"
          success_msg="$file → Box.com/$new_filename"
       else
