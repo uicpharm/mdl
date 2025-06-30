@@ -1,1 +1,1 @@
-copy.sh
+mdl-copy.sh

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -22,21 +22,20 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mnames=$("$scr_dir/select-env.sh" "$1")
+mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 targetbranch="$2"
 
 for mname in $mnames; do
 
-   if [ ! -d "$envs_dir/$mname/src" ]; then
+   if [ ! -d "$MDL_ENVS_DIR/$mname/src" ]; then
       echo "Source code directory does not exist for $mname. Can't upgrade."
       exit 1
    fi
 
    echo "Upgrading $mname..."
-   cd "$envs_dir/$mname/src" || exit 1
+   pushd "$MDL_ENVS_DIR/$mname/src" || exit 1
 
    # Pull latest repo data
-   git remote remove nevoband 2>/dev/null
    git remote set-url origin https://github.com/moodle/moodle.git
    git fetch -np
 
@@ -70,14 +69,7 @@ for mname in $mnames; do
    # Pop stash
    git stash pop
 
-   # Copy global customization files in-place
-   rsync -r --exclude='scripts' --exclude='*.sql' "$scr_dir/customizations/" .
-
-   # Fix permissions now if the container is actively running
-   container="$(docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle | head -1)"
-   [ -n "$container" ] && docker exec "$container" fix-perms
-
-   cd "$scr_dir" || exit 1
+   popd || exit 1
 
    echo 'Done!'
 

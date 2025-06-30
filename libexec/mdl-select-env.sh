@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -20,7 +20,7 @@ EOF
 
 # Calculate all environments in the environments directory (just the local directory name)
 envs=()
-for d in "$envs_dir"/*/; do
+for d in "$MDL_ENVS_DIR"/*/; do
    envs+=("$(basename "$d")")
 done
 

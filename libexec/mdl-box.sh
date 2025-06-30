@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 # Validation
 valid_action='auth refresh list ls download upload'
@@ -35,7 +35,7 @@ if [[ $1 == -* || -z $1 ]]; then
    [[ $1 == -h || $1 == --help ]] || echo -e "${red}You MUST provide the environment.$norm\n" >&2
    display_help; exit 1;
 else
-   mnames=$("$scr_dir/select-env.sh" "$1")
+   mnames=$("$scr_dir/mdl-select-env.sh" "$1")
    shift
 fi
 
@@ -111,7 +111,7 @@ fi
 function curl_api {
    local -r mname="$1"
    local -r args="$2"
-   local -r access_token_file="$scr_dir/environments/$mname/access_token.txt"
+   local -r access_token_file="$MDL_ENVS_DIR/$mname/box_access_token.txt"
    local access_token
    access_token=$(cat "$access_token_file" 2>/dev/null || echo invalid_token)
    response=$(eval "curl $args -H 'Authorization: Bearer $access_token'")
@@ -129,8 +129,8 @@ function curl_api {
 for mname in $mnames; do
 
    # Get environment values and use them when no local value provided.
-   # shellcheck source=environments/sample.env
-   . "$scr_dir/export-env.sh" "$mname"
+   # shellcheck source=../environments/sample.env
+   . "$scr_dir/mdl-export-env.sh" "$mname"
 
    #
    # Validation
@@ -141,8 +141,8 @@ for mname in $mnames; do
       [ -z "${!env_var}" ] && echo "${red}Your env file must have $ul$env_var$rmul set.$norm" >&2 && exit 1
    done
 
-   access_token_file="$scr_dir/environments/$mname/access_token.txt"
-   refresh_token_file="$scr_dir/environments/$mname/refresh_token.txt"
+   access_token_file="$MDL_ENVS_DIR/$mname/box_access_token.txt"
+   refresh_token_file="$MDL_ENVS_DIR/$mname/box_refresh_token.txt"
 
    if [[  $action == auth ]]; then
       echo "${bold}${ul}Authorizing with Box.com$norm"

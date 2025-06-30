@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -21,7 +21,7 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mnames=$("$scr_dir"/select-env.sh "$1")
+mnames=$("$scr_dir"/mdl-select-env.sh "$1")
 
 echo '
 WARNING: This makes a fast database backup, which is just a tar archive of the
@@ -40,7 +40,7 @@ for mname in $mnames; do
    fi
 
    # What label on the backup do they want? (Defaults to "local_branchver_yyyymmdd")
-   branchver=$("$scr_dir"/moodle-version.sh "$mname")
+   branchver=$("$scr_dir"/mdl-moodle-version.sh "$mname")
    defaultlabel="local_${branchver}_$(date +"%Y%m%d")"
    label="$2"
    if [ "$label" = "" ]; then
@@ -49,10 +49,10 @@ for mname in $mnames; do
      label="${label:-$defaultlabel}"
    fi
 
-   "$scr_dir/stop.sh" "$mname"
+   "$scr_dir/mdl-stop.sh" "$mname"
 
    db_target="${mname}_${label}_dbfiles.tar"
-   docker run --rm --privileged -v "$db_vol_name":/db -v "$backup_dir":/backup docker.io/alpine:3 tar cf "/backup/$db_target" -C /db .
+   docker run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup docker.io/alpine:3 tar cf "/backup/$db_target" -C /db .
 
    echo "Fast backup of $mname is done!"
 

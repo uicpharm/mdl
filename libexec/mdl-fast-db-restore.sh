@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -18,7 +18,7 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mnames=$("$scr_dir/select-env.sh" "$1")
+mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 
 echo '
 WARNING: This is restoring a fast database backup, which is just restoring the
@@ -28,16 +28,16 @@ never be used for production purposes.
 
 for mname in $mnames; do
 
-   # shellcheck source=environments/sample.env
-   . "$scr_dir/export-env.sh" "$mname"
+   # shellcheck source=../environments/sample.env
+   . "$scr_dir/mdl-export-env.sh" "$mname"
    echo "Preparing to restore a fast database backup of $mname..."
 
    # Stop the services if they're running
-   "$scr_dir/stop.sh" "$mname"
+   "$scr_dir/mdl-stop.sh" "$mname"
    echo
 
    # What timestamp of backup do they want? (Select from the list if they did not provide)
-   labels=$(find "$backup_dir" -name "${mname}_*_dbfiles.tar" | cut -d"_" -f2- | sed -e "s/_dbfiles.tar//")
+   labels=$(find "$MDL_BACKUP_DIR" -name "${mname}_*_dbfiles.tar" | cut -d"_" -f2- | sed -e "s/_dbfiles.tar//")
    [ -z "$labels" ] && echo "There are no fast backup files for $mname." && exit 1
    label="$2"
    # Even if they provided a label, prompt them if its not a label in the list
@@ -62,7 +62,7 @@ for mname in $mnames; do
 
    # Recreate volume and extract to the database volume
    docker volume create --label "com.docker.compose.project=$mname" "$db_vol_name"
-   docker run --rm --privileged -v "$db_vol_name":/db -v "$backup_dir":/backup docker.io/alpine:3 tar xf "/backup/$db_target" -C /db
+   docker run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup docker.io/alpine:3 tar xf "/backup/$db_target" -C /db
 
    echo "Done restoring the fast backup of database for $mname with label $label."
 

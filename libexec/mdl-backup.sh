@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 # Valid Options
 valid_modules='src data db'
@@ -10,7 +10,7 @@ valid_compress='bzip2 gzip xz none'
 default_modules='src data db'
 default_compress_arg='bzip2'
 default_label=$(date +%Y%m%d)
-default_dest=$backup_dir
+default_dest=$MDL_BACKUP_DIR
 
 # Apply Defaults
 modules=$default_modules
@@ -69,7 +69,7 @@ if [[ $1 == -* || -z $1 ]]; then
    [[ $1 == -h || $1 == --help ]] || echo -e "${red}You MUST provide the environment.$norm\n" >&2
    display_help; exit 1;
 else
-   mnames=$("$scr_dir/select-env.sh" "$1")
+   mnames=$("$scr_dir/mdl-select-env.sh" "$1")
    shift
 fi
 
@@ -86,7 +86,7 @@ fi
 if [[ $source_type == container ]]; then
    if [[ $1 == -* || -z $1 ]]; then
       # If not provided, we assume it is this local environment
-      source_full=$scr_dir
+      source_full=$MDL_ENVS_DIR
    else
       source_full=$1
       shift
@@ -208,12 +208,12 @@ for mname in $mnames; do
       if [[ -z $source_host ]]; then source_base=$(realpath "$source_base") || exit 1; fi
    fi
    # If base exists, set "data" and "src" paths if they didn't provide custom paths``
-   [[ -n $source_base && -z $source_data_path ]] && source_data_path=$source_base/environments/$mname/data
-   [[ -n $source_base && -z $source_src_path ]] && source_src_path=$source_base/environments/$mname/src
+   [[ -n $source_base && -z $source_data_path ]] && source_data_path=$source_base/$mname/data
+   [[ -n $source_base && -z $source_src_path ]] && source_src_path=$source_base/$mname/src
 
    # Get environment values and use them when no local value provided.
-   # shellcheck source=environments/sample.env
-   . "$scr_dir/export-env.sh" "$mname"
+   # shellcheck source=../environments/sample.env
+   . "$scr_dir/mdl-export-env.sh" "$mname"
    #  Preemptively use DB_NAME, DB_USERNAME, DB_PASSWORD for source database, if its a local backup (no host)
    if [[ -z $source_host ]]; then
       for env_var in DB_NAME DB_USERNAME DB_PASSWORD; do
@@ -263,7 +263,7 @@ for mname in $mnames; do
 
    # Targets
    if $sync; then
-      dest="$scr_dir/environments/$mname"
+      dest="$MDL_ENVS_DIR/$mname"
       [[ $modules =~ data ]] && data_target="$dest/data"
       [[ $modules =~ src ]] && src_target="$dest/src"
       [[ $modules =~ db ]] && db_target="$dest/backup.sql"
@@ -307,7 +307,7 @@ for mname in $mnames; do
       if $dry_run; then
          echo -e "${red}We would stop $mname container, but this is a dry run.$norm\n"
       else
-         "$scr_dir/stop.sh" "$mname"
+         "$scr_dir/mdl-stop.sh" "$mname"
       fi
    fi
 

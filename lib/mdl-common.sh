@@ -2,10 +2,28 @@
 
 # shellcheck disable=SC2155
 
+# Defaults
+cfg_file=/etc/mdl
+mdl_root=/var/moodle
+if [[ "$(uname)" == "Darwin" ]]; then
+   mdl_root="$HOME/Library/Application Support/moodle"
+   cfg_file="$mdl_root/config.ini"
+fi
+default_backup_dir="$mdl_root/backup"
+default_compose_dir="$mdl_root/compose"
+default_envs_dir="$mdl_root/environments"
+
 # Paths
-export scr_dir="$(realpath "${0%/*}")"
-export backup_dir="$scr_dir/backup"
-export envs_dir="$scr_dir/environments"
+export scr_dir=$(realpath "$(dirname "$(readlink -f "$0")")/../libexec")
+export MDL_CONFIG_FILE=$cfg_file
+# shellcheck source=/dev/null
+[[ -f $MDL_CONFIG_FILE ]] && . "$MDL_CONFIG_FILE"
+export MDL_BACKUP_DIR="${MDL_BACKUP_DIR:-$default_backup_dir}"
+export MDL_COMPOSE_DIR="${MDL_COMPOSE_DIR:-$default_compose_dir}"
+export MDL_ENVS_DIR="${MDL_ENVS_DIR:-$default_envs_dir}"
+mkdir -p "$MDL_BACKUP_DIR"
+mkdir -p "$MDL_COMPOSE_DIR"
+mkdir -p "$MDL_ENVS_DIR"
 
 # Formatting
 export norm=$(tput sgr0)
@@ -26,7 +44,9 @@ fi
 function script_name() {
    # shellcheck disable=SC2046
    local -r mdl=$(basename "$(readlink -- $(ps -o command -p $PPID))")
-   echo "$mdl $(basename -s ".${mdl:+sh}" "$0")"
+   local sub_cmd=$0
+   [[ -n "$mdl" ]] && sub_cmd=${sub_cmd/mdl-/} && echo -n "$mdl "
+   basename -s ".${mdl:+sh}" "$sub_cmd"
 }
 
 # Adjusts the results from `getopts` to support long options. It will only support the

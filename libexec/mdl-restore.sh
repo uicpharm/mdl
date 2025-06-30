@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -31,19 +31,19 @@ for cmd in tar bzip2 gzip xz; do
    fi
 done
 
-mnames=$("$scr_dir/select-env.sh" "$1")
+mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 
 for mname in $mnames; do
 
-   env_dir="$envs_dir/$mname"
-   # shellcheck source=environments/sample.env
-   . "$scr_dir/export-env.sh" "$mname"
+   env_dir="$MDL_ENVS_DIR/$mname"
+   # shellcheck source=../environments/sample.env
+   . "$scr_dir/mdl-export-env.sh" "$mname"
    echo -e "$bold$ul\nRestore $mname$norm"
 
    # Get a list of all files (and corresponding labels) from the desired source (local or box).
    # $files lists from the desired source (local or box), $local_files is always local.
-   local_files=$(find "$backup_dir" -name "${mname}_*_*.*")
-   $box && files=$("$scr_dir/box.sh" "$mname" ls) || files=$local_files
+   local_files=$(find "$MDL_BACKUP_DIR" -name "${mname}_*_*.*")
+   $box && files=$("$scr_dir/mdl-box.sh" "$mname" ls) || files=$local_files
    local_files=$(echo "$local_files" | xargs -r -n1 basename)
    files=$(echo "$files" | xargs -r -n1 basename)
    src_files=$(echo "$files" | awk -F'_' '$3 ~ /src/')
@@ -85,14 +85,14 @@ for mname in $mnames; do
       if [[ -z ${!target} ]]; then
          exit 1
       elif $box; then
-         "$scr_dir/box.sh" "$mname" download "${!target}" "$backup_dir/${!target}" && \
+         "$scr_dir/mdl-box.sh" "$mname" download "${!target}" "$MDL_BACKUP_DIR/${!target}" && \
          # If a similar, but not the same, local file existed, delete it.
-         # i.e. "medce_daily_src.tar" and "medce_daily_src.tar.bz2" and "medce_daily_src.tar.gz" are "similar" files.
+         # i.e. "mymoodle_daily_src.tar" and "mymoodle_daily_src.tar.bz2" and "mymoodle_daily_src.tar.gz" are "similar" files.
          [[ -n ${!local_target} && ${!local_target} != "${!target}" ]] && echo "Removing similar local file ${!local_target}." && \
-         rm -f "$backup_dir/${!local_target}"
+         rm -f "$MDL_BACKUP_DIR/${!local_target}"
       fi
       # If `extract` is requested, decompress the files
-      if $extract && new_target=$(decompress "$backup_dir/${!target}"); then
+      if $extract && new_target=$(decompress "$MDL_BACKUP_DIR/${!target}"); then
          declare $target="$(basename "$new_target")"
          echo "    - Extracted $ul${!target}$rmul."
       fi
@@ -104,10 +104,10 @@ for mname in $mnames; do
    sql_path="$env_dir/backup.sql"
 
    # Stop the services if they're running
-   "$scr_dir/stop.sh" "$mname"
+   "$scr_dir/mdl-stop.sh" "$mname"
 
    # Clear existing work files
-   "$scr_dir/remove.sh" "$mname"
+   "$scr_dir/mdl-remove.sh" "$mname"
 
    # Checks
    docker_id="$(id -u docker 2>/dev/null)"
@@ -126,26 +126,26 @@ for mname in $mnames; do
    (
       # If the decompression fails, that probably means it isn't compressed.
       # Copy the original file instead.
-      if ! decompress "$backup_dir/$db_target" "$sql_path" -k > /dev/null; then
-         cp "$backup_dir/$db_target" "$sql_path"
+      if ! decompress "$MDL_BACKUP_DIR/$db_target" "$sql_path" -k > /dev/null; then
+         cp "$MDL_BACKUP_DIR/$db_target" "$sql_path"
       fi && \
       [ -n "$docker_id" ] && chown "$docker_id" "$sql_path"
    ) &
 
    # Extract source and data.
-   tar xf "$backup_dir/$data_target" -C "$data_path" &
-   tar xf "$backup_dir/$src_target" -C "$src_path" &
+   tar xf "$MDL_BACKUP_DIR/$data_target" -C "$data_path" &
+   tar xf "$MDL_BACKUP_DIR/$src_target" -C "$src_path" &
 
    wait
 
    # Remove the local backup files when done, if they specified that option
    if $remove_when_done; then
       echo Removing local backup files...
-      rm -fv "$backup_dir/$data_target" "$backup_dir/$src_target" "$backup_dir/$db_target"
+      rm -fv "$MDL_BACKUP_DIR/$data_target" "$MDL_BACKUP_DIR/$src_target" "$MDL_BACKUP_DIR/$db_target"
    fi
 
    # Update Moodle config
-   "$scr_dir/update-config.sh" "$mname"
+   "$scr_dir/mdl-update-config.sh" "$mname"
 
    echo "Done restoring $ul$mname$rmul from $backup_source_desc backup set with label $ul$label$norm."
 

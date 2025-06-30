@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -22,19 +22,19 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mnames=$("$scr_dir/select-env.sh" "$1")
+mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 key_param=$2
 val_param=$3
 [[ -n $key_param && -z $val_param ]] && get_mode=true || get_mode=false
-cli="$scr_dir/cli.sh"
+cli="$scr_dir/mdl-cli.sh"
 
 for mname in $mnames; do
    $get_mode || echo "$bold${ul}Setting configurations for $mname$norm"
    # The environment must be started. If not, abort.
-   ! "$scr_dir/status.sh" "$mname" -q && echo "The $mname environment is not started!" >&2 && continue
+   ! "$scr_dir/mdl-status.sh" "$mname" -q && echo "The $mname environment is not started!" >&2 && continue
    # If they provided a key, use that. Otherwise, use the contents of .env file.
    if [[ -z $key_param ]]; then
-      env_file="$envs_dir/$mname/.env"
+      env_file="$MDL_ENVS_DIR/$mname/.env"
       [[ ! -f $env_file ]] && echo "The $mname .env file does not exist!" >&2 && exit 1
       env_content=$(cat "$env_file")
    else

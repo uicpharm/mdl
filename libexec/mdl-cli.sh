@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -47,7 +47,7 @@ for arg in "$@"; do
       break
    fi
 done
-mnames=$("$scr_dir"/select-env.sh "$1")
+mnames=$("$scr_dir"/mdl-select-env.sh "$1")
 
 for mname in $mnames; do
 

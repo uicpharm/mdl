@@ -1,1 +1,1 @@
-remove.sh
+mdl-remove.sh

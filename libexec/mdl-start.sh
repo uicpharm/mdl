@@ -1,6 +1,6 @@
 #!/bin/bash
 
-. "${0%/*}/util/common.sh"
+. "${0%/*}/../lib/mdl-common.sh"
 
 display_help() {
    cat <<EOF
@@ -17,7 +17,7 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-mnames=$("$scr_dir/select-env.sh" "$1")
+mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 follow=false
 wait=false
 [[ $(docker --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false
@@ -32,15 +32,15 @@ done
 
 for mname in $mnames; do
 
-   docker_compose_path=$("$scr_dir/calc-docker-compose-path.sh" "$mname")
+   docker_compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
    echo "Starting $mname..."
-   . "$scr_dir/calc-images.sh" "$mname"
-   . "$scr_dir/export-env.sh" "$mname"
+   . "$scr_dir/mdl-calc-images.sh" "$mname"
+   . "$scr_dir/mdl-export-env.sh" "$mname"
 
    # Explicitly add the pod so it has its lifecycle container and the exact name we want
    $IS_PODMAN && ! docker pod exists "$mname" && podman pod create --name "$mname"
    $IS_PODMAN && podman_args=('--podman-run-args' "--pod $mname")
-   (cd "$scr_dir" && docker-compose "${podman_args[@]}" -f "$docker_compose_path" up -d)
+   docker-compose "${podman_args[@]}" -f "$docker_compose_path" up -d
 
    if $wait; then
       # Do not exit until environment is fully running
@@ -48,7 +48,7 @@ for mname in $mnames; do
       moodle_check=''
       while [ -z "$moodle_check" ]; do
          echo -n '.'
-         if ! moodle_check="$("$scr_dir/cli.sh" "$mname" checks --filter=core)"; then
+         if ! moodle_check="$("$scr_dir/mdl-cli.sh" "$mname" checks --filter=core)"; then
             moodle_check=''
          fi
          [ -z "$moodle_check" ] && sleep 6
@@ -56,7 +56,7 @@ for mname in $mnames; do
       echo ' Done!'
    fi
    if $follow; then
-      "$scr_dir/logs.sh" "$mname" -f
+      "$scr_dir/mdl-logs.sh" "$mname" -f
    fi
 
 done
