@@ -18,13 +18,12 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-for dir in "$MDL_ENVS_DIR"/*/
-do
+while read -r dir; do
    mname=$(basename "$dir")
    if docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep -q moodle; then
       (( runcnt++ )) || true
       running="$mname"
    fi
-done
+done < <(find "$MDL_ENVS_DIR" -mindepth 1 -maxdepth 1 -type d)
 
 [ $runcnt -eq 1 ] && echo "$running" || echo ''
