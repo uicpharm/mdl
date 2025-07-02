@@ -1,0 +1,24 @@
+name: Development
+
+on:
+   push:
+      branches:
+        - '**'
+   workflow_call:
+   workflow_dispatch:
+
+jobs:
+   test:
+      name: Lint and Test
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/checkout@v4
+           with: { fetch-depth: 0 }
+         - uses: actions/setup-node@v4
+           with:
+               node-version-file: ".nvmrc"
+               cache: "npm"
+         - run: npm ci
+         - run: npm run test --if-present
+         - run: npm run standards --if-present
+         - run: if [ -n "$(git status --porcelain)" ]; then echo 'There are uncommitted changes.'; exit 1; fi
