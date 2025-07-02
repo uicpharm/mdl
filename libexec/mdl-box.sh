@@ -130,7 +130,7 @@ for mname in $mnames; do
 
    # Get environment values and use them when no local value provided.
    # shellcheck source=../environments/sample.env
-   . "$scr_dir/mdl-export-env.sh" "$mname"
+   . "$scr_dir/mdl-export-env.sh" "$mname" --no-update-config
 
    #
    # Validation
@@ -255,5 +255,8 @@ for mname in $mnames; do
       echo "${red}Invalid action: $action.$norm" >&2
       exit 1;
    fi
+
+   # Unset environment variables
+   . "$scr_dir/mdl-export-env.sh" "$mname" -u
 
 done

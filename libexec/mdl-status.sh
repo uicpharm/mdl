@@ -59,8 +59,9 @@ for mname in $mnames; do
       if [ -n "$running" ]; then
          echo
          . "$scr_dir/mdl-calc-images.sh" "$mname"
-         . "$scr_dir/mdl-export-env.sh" "$mname"
+         . "$scr_dir/mdl-export-env.sh" "$mname" --no-update-config
          docker-compose -f "$docker_compose_path" ps 2>/dev/null
+         . "$scr_dir/mdl-export-env.sh" "$mname" -u
       fi
       echo
    )

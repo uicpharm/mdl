@@ -66,4 +66,7 @@ for mname in $mnames; do
 
    echo "Done restoring the fast backup of database for $mname with label $label."
 
+   # Unset environment variables
+   . "$scr_dir/mdl-export-env.sh" "$mname" -u
+
 done

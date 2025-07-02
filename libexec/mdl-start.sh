@@ -59,4 +59,7 @@ for mname in $mnames; do
       "$scr_dir/mdl-logs.sh" "$mname" -f
    fi
 
+   # Unset environment variables
+   . "$scr_dir/mdl-export-env.sh" "$mname" -u
+
 done

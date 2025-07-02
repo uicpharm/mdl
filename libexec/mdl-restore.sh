@@ -37,7 +37,7 @@ for mname in $mnames; do
 
    env_dir="$MDL_ENVS_DIR/$mname"
    # shellcheck source=../environments/sample.env
-   . "$scr_dir/mdl-export-env.sh" "$mname"
+   . "$scr_dir/mdl-export-env.sh" "$mname" --no-update-config
    echo -e "$bold$ul\nRestore $mname$norm"
 
    # Get a list of all files (and corresponding labels) from the desired source (local or box).
@@ -145,8 +145,11 @@ for mname in $mnames; do
    fi
 
    # Update Moodle config
-   "$scr_dir/mdl-update-config.sh" "$mname"
+   . "$scr_dir/mdl-export-env.sh" "$mname"
 
    echo "Done restoring $ul$mname$rmul from $backup_source_desc backup set with label $ul$label$norm."
+
+   # Unset environment variables
+   . "$scr_dir/mdl-export-env.sh" "$mname" -u
 
 done

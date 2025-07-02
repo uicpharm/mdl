@@ -33,6 +33,9 @@ for mname in $mnames; do
    docker-compose -f "$docker_compose_path" down "${@:2}"
    # Since we explicitly add the pod via script, we must explicitly remove it
    # shellcheck disable=SC2015
-   $IS_PODMAN && docker pod exists "$mname" && podman pod rm -f "$mname" || true
+   $IS_PODMAN && docker pod exists "$mname" && podman pod rm -f "$mname"
+
+   # Unset environment variables
+   . "$scr_dir/mdl-export-env.sh" "$mname" -u
 
 done

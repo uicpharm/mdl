@@ -49,4 +49,7 @@ for mname in $mnames; do
       exit 1
    fi
 
+   # Unset environment variables
+   . "$scr_dir/mdl-export-env.sh" "$mname" -u
+
 done

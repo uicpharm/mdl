@@ -213,7 +213,7 @@ for mname in $mnames; do
 
    # Get environment values and use them when no local value provided.
    # shellcheck source=../environments/sample.env
-   . "$scr_dir/mdl-export-env.sh" "$mname"
+   . "$scr_dir/mdl-export-env.sh" "$mname" --no-update-config
    #  Preemptively use DB_NAME, DB_USERNAME, DB_PASSWORD for source database, if its a local backup (no host)
    if [[ -z $source_host ]]; then
       for env_var in DB_NAME DB_USERNAME DB_PASSWORD; do
@@ -409,5 +409,8 @@ for mname in $mnames; do
    # TODO: It'd be nice if we check if any of the steps failed, and exit non-zero if so.
    wait
    echo "$action_word of $mname environment is complete!"
+
+   # Unset environment variables
+   . "$scr_dir/mdl-export-env.sh" "$mname" -u
 
 done
