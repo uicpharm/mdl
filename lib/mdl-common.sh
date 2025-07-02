@@ -19,6 +19,7 @@ default_versions_source_check_frequency=604800 # 7 days
 
 # Paths
 export scr_dir="$(realpath "${0%/*}/../libexec")"
+export MDL_ROOT=$mdl_root
 export MDL_CONFIG_FILE=$cfg_file
 # shellcheck source=/dev/null
 [[ -f $MDL_CONFIG_FILE ]] && . "$MDL_CONFIG_FILE"
@@ -45,6 +46,22 @@ if [[ ! $* =~ -h && ! $* =~ --help ]] && ! docker info 2>/dev/null | grep -iq 'd
    echo "${red}You must run mdl commands as a superuser.$norm" >&2
    exit 1
 fi
+
+# Title for the script
+export mdl_title=$(cat <<EOF
+$red
+     ░▒██████████▓░ ░▒█████▓░ ░▒█▒░              ░▓████▓░ ░▒█▓░      ░▒█▒░
+     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░             ░▒█▒░░▒█▒░░▒█▓░      ░▒█▒░
+     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░             ░▒█▒░     ░▒█▓░      ░▒█▒░
+     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░             ░▒█▒░     ░▒█▓░      ░▒█▒░
+     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░             ░▒█▒░     ░▒█▓░      ░▒█▒░
+     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░             ░▒█▒░░▒█▒░░▒█▓░      ░▒█▒░
+     ░▒█▒░░▒█▒░░▒█▒░░▒█████▓░ ░▒███████▓▒░       ░▓████▓░ ░▒██████▓▒░░▒█▒░
+$norm$bold
+          A great CLI for managing containerized Moodle environments!
+$norm
+EOF
+)
 
 # Returns the name of the script, trying to factor in whether you called the script
 # directly or used the `mdl` script.
@@ -100,4 +117,37 @@ function decompress() {
    fi
    # If we got here, the file is not compressed. Throw an error.
    return 2
+}
+
+# Asks a question and returns the response. If the user does not provide a response, it
+# returns the default value. If no default is provided, it returns an empty string.
+function ask() {
+   local question=$1
+   local default=$2
+   echo -n "$question" >&2
+   [[ -n $default ]] && echo -n " [$default]" >&2
+   echo -n ": " >&2
+   read -r response
+   echo "${response:-$default}"
+}
+
+# Asks a yes/no question and returns 0 for 'yes' and 1 for 'no'. If the user does not
+# provide a response, it uses the default value.
+function yorn() {
+   local question=$1
+   local default=${2:-y}
+   while true; do
+      echo -n "$question " >&2
+      [[ $default =~ [Yy] ]] && echo -n "[Y/n]: " >&2 || echo -n "[y/N]: " >&2
+      read -r response
+      [[ -z $response ]] && response=$default
+      response=$(echo "${response:0:1}" | tr '[:upper:]' '[:lower:]')
+      if [[ $response == y ]]; then
+         return 0
+      elif [[ $response == n ]]; then
+         return 1
+      else
+         echo "Please answer 'y' or 'n'." >&2
+      fi
+   done
 }

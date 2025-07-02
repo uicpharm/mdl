@@ -13,6 +13,7 @@ or --env option, it will remove the entire Moodle environment, not just its data
 Options:
 -h, --help         Show this help message and exit.
 -e, --env          Remove the entire Moodle environment, not just its data.
+-s, --sys          Fully uninstall the Moodle system.
 
 $ul${bold}Examples$norm
 
@@ -24,12 +25,19 @@ Remove the entire Moodle environment:
 
 Remove just this backup set for the Moodle environment:
    $bold$(script_name) \$mname 20240920$norm
+
+Uninstall the entire Moodle system:
+   $bold$(script_name) --sys$norm
 EOF
 }
 
 # Parameter #1: Environment
-mnames=$("$scr_dir/mdl-select-env.sh" "$1")
-[[ $1 == all || $1 == "$mnames" ]] && shift
+if [[ $1 == -* ]]; then
+   mnames=
+else
+   mnames=$("$scr_dir/mdl-select-env.sh" "$1")
+   [[ $1 == all || $1 == "$mnames" ]] && shift
+fi
 
 # Parameter #2: Label, multiple can be provided
 labels=
@@ -40,6 +48,17 @@ labels="${labels%" "}"
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 [[ $* =~ -e || $* =~ --env ]] && env=true || env=false
+[[ $* =~ -s || $* =~ --sys ]] && sys=true || sys=false
+
+if $sys; then
+   yorn "Remove backups at $ul$MDL_BACKUP_DIR$rmul?" y && rm -Rfv "$MDL_BACKUP_DIR"
+   yorn "Remove Moodle environments at $ul$MDL_ENVS_DIR$rmul?" y && rm -Rfv "$MDL_ENVS_DIR"
+   yorn "Remove compose files at $ul$MDL_COMPOSE_DIR$rmul?" y && rm -Rfv "$MDL_COMPOSE_DIR"
+   yorn "Remove versions file at $ul$MDL_VERSIONS_FILE$rmul?" y && rm -fv "$MDL_VERSIONS_FILE"
+   yorn "Remove the entire Moodle system at $ul$MDL_ROOT$rmul?" y && rm -Rfv "$MDL_ROOT"
+   echo "Moodle system uninstalled successfully."
+   exit 0
+fi
 
 for mname in $mnames; do
 
