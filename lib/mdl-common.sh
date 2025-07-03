@@ -41,12 +41,6 @@ export bold=$(tput bold)
 export red=$(tput setaf 1)
 export green=$(tput setaf 2)
 
-# Abort if user is not a superuser on Docker daemon (in Docker Desktop, or if calling help screen, it's ok)
-if [[ ! $* =~ -h && ! $* =~ --help ]] && ! docker info 2>/dev/null | grep -iq 'docker desktop' && [[ $EUID -ne 0 ]]; then
-   echo "${red}You must run mdl commands as a superuser.$norm" >&2
-   exit 1
-fi
-
 # Title for the script
 export mdl_title=$(cat <<EOF
 $red
