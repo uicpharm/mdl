@@ -218,7 +218,7 @@ for mname in $mnames; do
       file_id=$(echo "$files_json" | jq -r --arg val "$file" '.pages[].entries[] | select(.name == $val) | .id')
       [[ -z $file_id ]] && file_id=$(echo "$files_json" | jq -r --arg val "$file" '.entries[] | select(.id == $val) | .id')
       [[ -z $file_id ]] && echo "${red}Could not find file $file.$norm" >&2 && exit 1
-      curl_api "$mname" "-L https://api.box.com/2.0/files/$file_id/content -o $targ"
+      curl_api "$mname" "-L https://api.box.com/2.0/files/$file_id/content -o '$targ'"
    elif [[ $action == list ]] || [[ $action == ls ]]; then
       if $verbose; then echo "${bold}${ul}Files for $mname:$norm"; fi
       # Box.com limit is 1000. Even if we pick a larger number, it will set it to 1000.

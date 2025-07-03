@@ -68,7 +68,7 @@ for mname in $mnames; do
    while IFS= read -r -d '' file; do
       filename=$(basename "$file")
       new_filename=$(sed -E 's/([^_]+)_[^_]+_([^_]+)([.\w]+)/\1_'"$new_label"'_\2\3/' <<< "$filename")
-      cmd="mv -v $MDL_BACKUP_DIR/$filename $MDL_BACKUP_DIR/$new_filename"
+      cmd="mv -v '$MDL_BACKUP_DIR/$filename' '$MDL_BACKUP_DIR/$new_filename'"
       $verbose && echo "$cmd"
       if $dry_run; then
          echo "${red}Rename $ul$filename$rmul → $ul$new_filename$rmul skipped because this is a dry run.$norm"
