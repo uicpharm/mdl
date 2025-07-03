@@ -27,4 +27,5 @@ grep -qw DB_NAME "$env_path" || echo DB_NAME="moodle_$mname" >> "$env_path"
 grep -qw DB_USERNAME "$env_path" || echo DB_USERNAME="moodleuser_$mname" >> "$env_path"
 grep -qw DB_PASSWORD "$env_path" || echo DB_PASSWORD="$(openssl rand -hex 20)" >> "$env_path"
 grep -qw MOODLE_HOST "$env_path" || echo MOODLE_HOST="$mname.local" >> "$env_path"
+grep -qw WWWROOT "$env_path" || echo WWWROOT="http://$mname.local" >> "$env_path"
 exit 0
