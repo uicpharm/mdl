@@ -347,12 +347,12 @@ for mname in $mnames; do
             --exclude='./localcache' \
             --exclude='./cache' \
             --exclude='./moodle-cron.log' \
-            -C $source_data_path .
+            -C '$source_data_path' .
       "
       # shellcheck disable=SC2034
       src_cmd="
          ${source_host:+"ssh $ssh_args $source_host sudo"} \
-         tar c $compress_flag --no-xattrs -C $source_src_path .
+         tar c $compress_flag --no-xattrs -C '$source_src_path' .
       "
    fi
    # TODO: When piping to compression program, a failed status of mysqldump will be lost.
@@ -384,7 +384,7 @@ for mname in $mnames; do
             # Add redirection, but only when target is not a directory. If it's a directory, we assume
             # we are trying to rsync. If not a directory (it is file or nonexistent), we assume it's a file.
             test -d "$targ" && targ_is_dir=true || targ_is_dir=false
-            $targ_is_dir || cmd="$cmd > $targ"
+            $targ_is_dir || cmd="$cmd > '$targ'"
             # Execute the command, and handle success/fail scenarios
             eval "$cmd" && success=true || success=false
             if $success; then

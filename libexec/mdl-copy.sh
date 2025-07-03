@@ -169,14 +169,14 @@ for mname in $mnames; do
       fi
       # Copy is different based on Box upload or filesystem copy
       if $box; then
-         cmd="$scr_dir/mdl-box.sh $mname upload $file $new_filename"
+         cmd="$scr_dir/mdl-box.sh $mname upload '$file' '$new_filename'"
          $verbose && cmd="$cmd -v"
          success_msg="$file → Box.com/$new_filename"
       else
-         cmd="cp $file $dest/$new_filename"
+         cmd="cp '$file' '$dest/$new_filename'"
          success_msg="$file → $dest/$new_filename"
       fi
-      $remove && cmd="$cmd && rm $file"
+      $remove && cmd="$cmd && rm '$file'"
       $verbose && echo "$cmd"
       if $dry_run; then
          echo "${red}Copy of $ul$filename$rmul skipped because this is a dry run.$norm"
