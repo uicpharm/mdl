@@ -3,6 +3,7 @@
 # shellcheck disable=SC2155
 
 # Defaults
+export MDL_BASE_URL=https://raw.githubusercontent.com/uicpharm/mdl/refs/heads/main
 cfg_file=/etc/mdl
 mdl_root=/var/moodle
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -12,6 +13,9 @@ fi
 default_backup_dir="$mdl_root/backup"
 default_compose_dir="$mdl_root/compose"
 default_envs_dir="$mdl_root/environments"
+default_versions_file="$mdl_root/versions.txt"
+default_versions_source_url=$MDL_BASE_URL/versions.txt
+default_versions_source_check_frequency=604800 # 7 days
 
 # Paths
 export scr_dir=$(realpath "$(dirname "$(readlink -f "$0")")/../libexec")
@@ -21,6 +25,9 @@ export MDL_CONFIG_FILE=$cfg_file
 export MDL_BACKUP_DIR="${MDL_BACKUP_DIR:-$default_backup_dir}"
 export MDL_COMPOSE_DIR="${MDL_COMPOSE_DIR:-$default_compose_dir}"
 export MDL_ENVS_DIR="${MDL_ENVS_DIR:-$default_envs_dir}"
+export MDL_VERSIONS_FILE="${MDL_VERSIONS_FILE:-$default_versions_file}"
+export MDL_VERSIONS_SOURCE_URL="${MDL_VERSIONS_SOURCE_URL:-$default_versions_source_url}"
+export MDL_VERSIONS_SOURCE_CHECK_FREQUENCY="${MDL_VERSIONS_SOURCE_CHECK_FREQUENCY:-$default_versions_source_check_frequency}"
 mkdir -p "$MDL_BACKUP_DIR"
 mkdir -p "$MDL_COMPOSE_DIR"
 mkdir -p "$MDL_ENVS_DIR"
