@@ -15,14 +15,12 @@ services:
          - MARIADB_COLLATE=utf8mb4_unicode_ci
          - MARIADB_SKIP_TEST_DB=yes
       volumes:
-         - '/etc/localtime:/etc/localtime:ro'
-         - './environments/$mname/backup.sql:/docker-entrypoint-initdb.d/restore-the-backup.sql:ro'
-         - 'db:/bitnami/mariadb'
+         - /etc/localtime:/etc/localtime:ro
+         - $MDL_ENVS_DIR/$mname/backup.sql:/docker-entrypoint-initdb.d/restore-the-backup.sql:ro
+         - db:/bitnami/mariadb
    moodle:
       image: $MOODLE_IMAGE
       privileged: true
-      command: [ "/opt/bitnami/scripts/moodle/run.sh" ]
-      entrypoint: [ "custom-entrypoint.sh" ]
       restart: unless-stopped
       ports:
         - $MOODLE_PORT:8080
@@ -30,7 +28,6 @@ services:
          - mariadb
       networks:
          - backend
-         - frontend
       environment:
          - MOODLE_DATABASE_HOST=mariadb
          - MOODLE_DATABASE_PORT_NUMBER=3306
@@ -40,13 +37,10 @@ services:
          - MOODLE_SKIP_BOOTSTRAP=yes
          - MOODLE_HOST=${MOODLE_HOST:-localhost}
       volumes:
-         - '/etc/localtime:/etc/localtime:ro'
-         - './customizations/scripts:/usr/local/bin:ro'
-         - './environments/$mname/src:/bitnami/moodle'
-         - './environments/$mname/data:/bitnami/moodledata'
+         - /etc/localtime:/etc/localtime:ro
+         - $MDL_ENVS_DIR/$mname/src:/bitnami/moodle
+         - $MDL_ENVS_DIR/$mname/data:/bitnami/moodledata
 networks:
    backend:
-   frontend:
-      external: true
 volumes:
    db:
