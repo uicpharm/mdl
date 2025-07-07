@@ -4,11 +4,12 @@
 
 # Defaults
 export MDL_BASE_URL=https://raw.githubusercontent.com/uicpharm/mdl/refs/heads/main
-cfg_file=/etc/mdl
-mdl_root=/var/moodle
-if [[ "$(uname)" == "Darwin" ]]; then
-   mdl_root="$HOME/Library/Application Support/moodle"
-   cfg_file="$mdl_root/config.ini"
+if [[ $EUID -eq 0 ]]; then
+   cfg_file=/etc/mdl.conf
+   mdl_root=/var/moodle
+else
+   cfg_file=$HOME/.moodle/mdl.conf
+   mdl_root=$HOME/.moodle
 fi
 default_backup_dir="$mdl_root/backup"
 default_compose_dir="$mdl_root/compose"
@@ -18,7 +19,8 @@ default_versions_source_url=$MDL_BASE_URL/versions.txt
 default_versions_source_check_frequency=604800 # 7 days
 
 # Paths
-export scr_dir=$(realpath "$(dirname "$(readlink -f "$0")")/../libexec")
+export scr_dir=${scr_dir:-$(realpath "$(dirname "$(readlink -f "$0")")/../libexec")}
+export MDL_ROOT=$mdl_root
 export MDL_CONFIG_FILE=$cfg_file
 # shellcheck source=/dev/null
 [[ -f $MDL_CONFIG_FILE ]] && . "$MDL_CONFIG_FILE"
@@ -28,9 +30,6 @@ export MDL_ENVS_DIR="${MDL_ENVS_DIR:-$default_envs_dir}"
 export MDL_VERSIONS_FILE="${MDL_VERSIONS_FILE:-$default_versions_file}"
 export MDL_VERSIONS_SOURCE_URL="${MDL_VERSIONS_SOURCE_URL:-$default_versions_source_url}"
 export MDL_VERSIONS_SOURCE_CHECK_FREQUENCY="${MDL_VERSIONS_SOURCE_CHECK_FREQUENCY:-$default_versions_source_check_frequency}"
-mkdir -p "$MDL_BACKUP_DIR"
-mkdir -p "$MDL_COMPOSE_DIR"
-mkdir -p "$MDL_ENVS_DIR"
 
 # Formatting
 export norm=$(tput sgr0)
@@ -40,20 +39,27 @@ export bold=$(tput bold)
 export red=$(tput setaf 1)
 export green=$(tput setaf 2)
 
-# Abort if user is not a superuser on Docker daemon (in Docker Desktop, or if calling help screen, it's ok)
-if [[ ! $* =~ -h && ! $* =~ --help ]] && ! docker info 2>/dev/null | grep -iq 'docker desktop' && [[ $EUID -ne 0 ]]; then
-   echo "${red}You must run mdl commands as a superuser.$norm" >&2
-   exit 1
-fi
+# Title for the script
+function mdl_title() {
+   local -r ver=$("$scr_dir/../bin/mdl" -v)
+   echo "$red"
+   echo "     ░▒██████████▓░ ░▒█████▓░ ░▒█▒░           ░▓████▓░ ░▒█▓░      ░▒█▒░"
+   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░░▒█▒░░▒█▓░      ░▒█▒░"
+   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░     ░▒█▓░      ░▒█▒░"
+   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░     ░▒█▓░      ░▒█▒░"
+   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░     ░▒█▓░      ░▒█▒░"
+   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░░▒█▒░░▒█▓░      ░▒█▒░"
+   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█████▓░ ░▒███████▓▒░    ░▓████▓░ ░▒██████▓▒░░▒█▒░"
+   echo "$norm$bold"
+   echo "CLI for managing containerized Moodle environments! $(tput setaf 3)(${ver/mdl version /v})"
+   echo "$norm"
+}
 
 # Returns the name of the script, trying to factor in whether you called the script
 # directly or used the `mdl` script.
 function script_name() {
-   # shellcheck disable=SC2046
-   local -r mdl=$(basename "$(readlink -- $(ps -o command -p $PPID))")
-   local sub_cmd=$0
-   [[ -n "$mdl" ]] && sub_cmd=${sub_cmd/mdl-/} && echo -n "$mdl "
-   basename -s ".${mdl:+sh}" "$sub_cmd"
+   local -r script_basename=$(basename -s .sh "$0")
+   echo "${script_basename/-/ }"
 }
 
 # Adjusts the results from `getopts` to support long options. It will only support the
@@ -100,4 +106,37 @@ function decompress() {
    fi
    # If we got here, the file is not compressed. Throw an error.
    return 2
+}
+
+# Asks a question and returns the response. If the user does not provide a response, it
+# returns the default value. If no default is provided, it returns an empty string.
+function ask() {
+   local question=$1
+   local default=$2
+   echo -n "$question" >&2
+   [[ -n $default ]] && echo -n " [$default]" >&2
+   echo -n ": " >&2
+   read -r response
+   echo "${response:-$default}"
+}
+
+# Asks a yes/no question and returns 0 for 'yes' and 1 for 'no'. If the user does not
+# provide a response, it uses the default value.
+function yorn() {
+   local question=$1
+   local default=${2:-y}
+   while true; do
+      echo -n "$question " >&2
+      [[ $default =~ [Yy] ]] && echo -n "[Y/n]: " >&2 || echo -n "[y/N]: " >&2
+      read -r response
+      [[ -z $response ]] && response=$default
+      response=$(echo "${response:0:1}" | tr '[:upper:]' '[:lower:]')
+      if [[ $response == y ]]; then
+         return 0
+      elif [[ $response == n ]]; then
+         return 1
+      else
+         echo "Please answer 'y' or 'n'." >&2
+      fi
+   done
 }

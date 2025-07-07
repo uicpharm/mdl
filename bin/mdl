@@ -1,12 +1,19 @@
 #!/bin/bash
 
+ver=1.0.0
 sub_cmd="${1/\.sh/}"
 scr_dir=$(realpath "$(dirname "$(readlink -f "$0")")/../libexec")
 sub_cmd_path="$scr_dir/mdl-$sub_cmd.sh"
 
 if [ -f "$sub_cmd_path" ]; then
    "$sub_cmd_path" "${@:2}"
+elif [[ $* =~ -v || $* =~ --version ]]; then
+   echo -n "mdl version $ver, build "
+   find "$(readlink -f "$0")" "$scr_dir"/mdl-*.sh "$scr_dir"/../lib/mdl-*.sh -type f 2>/dev/null | \
+   sort | xargs cat | sha256sum | cut -c1-8
 else
+   . "$scr_dir/../lib/mdl-common.sh"
+   mdl_title
    [ -n "$sub_cmd" ] && echo -e "The subcommand $sub_cmd doesn't exist.\n"
 
    # Find all aliases
