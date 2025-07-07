@@ -25,6 +25,10 @@ EOF
 
 $display_title && echo "$mdl_title"
 
+function if_sudo() {
+   test -w "$(dirname "$1")" && echo '' || echo 'sudo'
+}
+
 should_init_system=false
 ! "$scr_dir/mdl-info.sh" -q && should_init_system=true
 [[ -z $mname ]] && $force && should_init_system=true
@@ -32,22 +36,28 @@ if $should_init_system; then
    echo "Let's get started! Please answer these configuration questions. You can change"
    echo "them later by editing the configuration file saved at:"
    echo "$ul$MDL_CONFIG_FILE$rmul"
-   echo
+   if [[ $EUID -ne 0 ]]; then
+      echo
+      echo "If 'sudo' permission is needed, we may ask for your sudo password." >&2
+      echo
+   fi
    MDL_ENVS_DIR=$(ask "Where do you want to store environments?" "$MDL_ENVS_DIR")
    MDL_BACKUP_DIR=$(ask "Where do you want to store backups?" "$MDL_BACKUP_DIR")
    MDL_COMPOSE_DIR=$(ask "Where do you want to store Docker Compose files?" "$MDL_COMPOSE_DIR")
    MDL_VERSIONS_FILE=$(ask "Where do you want to store the versions file?" "$MDL_VERSIONS_FILE")
    MDL_VERSIONS_SOURCE_URL=$(ask "Where do you want to download the versions file from?" "$MDL_VERSIONS_SOURCE_URL")
    MDL_VERSIONS_SOURCE_CHECK_FREQUENCY=$(ask "How often do you want to check for updates to the versions file (in seconds)?" "$MDL_VERSIONS_SOURCE_CHECK_FREQUENCY")
-   echo '# This file is used to configure the mdl script.' > "$MDL_CONFIG_FILE"
+   $(if_sudo "$MDL_ROOT") install -m 0770 -o "$(whoami)" -d "$MDL_ROOT"
+   sudo=$(if_sudo "$MDL_CONFIG_FILE")
+   $sudo echo '# This file is used to configure the mdl script.' > "$MDL_CONFIG_FILE"
    echo
    for x in MDL_ENVS_DIR MDL_BACKUP_DIR MDL_COMPOSE_DIR MDL_VERSIONS_FILE MDL_VERSIONS_SOURCE_URL MDL_VERSIONS_SOURCE_CHECK_FREQUENCY; do
-      echo "$x='${!x}'" >> "$MDL_CONFIG_FILE"
+      $sudo echo "$x='${!x}'" >> "$MDL_CONFIG_FILE"
    done
    echo "Configuration saved to: $ul$MDL_CONFIG_FILE$rmul"
-   mkdir -p "$MDL_ENVS_DIR"
-   mkdir -p "$MDL_BACKUP_DIR"
-   mkdir -p "$MDL_COMPOSE_DIR"
+   $(if_sudo "$MDL_ENVS_DIR") install -m 0770 -o "$(whoami)" -d "$MDL_ENVS_DIR"
+   $(if_sudo "$MDL_BACKUP_DIR") install -m 0770 -o "$(whoami)" -d "$MDL_BACKUP_DIR"
+   $(if_sudo "$MDL_COMPOSE_DIR") install -m 0770 -o "$(whoami)" -d "$MDL_COMPOSE_DIR"
    echo 'Downloading compose file(s)...'
    if ! curl -fsL "$MDL_BASE_URL/compose/compose.yml" -o "$MDL_COMPOSE_DIR/compose.yml"; then
       echo "Failed to download compose file. Please check your internet connection or the URL." >&2

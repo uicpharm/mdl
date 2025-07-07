@@ -29,9 +29,6 @@ export MDL_ENVS_DIR="${MDL_ENVS_DIR:-$default_envs_dir}"
 export MDL_VERSIONS_FILE="${MDL_VERSIONS_FILE:-$default_versions_file}"
 export MDL_VERSIONS_SOURCE_URL="${MDL_VERSIONS_SOURCE_URL:-$default_versions_source_url}"
 export MDL_VERSIONS_SOURCE_CHECK_FREQUENCY="${MDL_VERSIONS_SOURCE_CHECK_FREQUENCY:-$default_versions_source_check_frequency}"
-mkdir -p "$MDL_BACKUP_DIR"
-mkdir -p "$MDL_COMPOSE_DIR"
-mkdir -p "$MDL_ENVS_DIR"
 
 # Formatting
 export norm=$(tput sgr0)
