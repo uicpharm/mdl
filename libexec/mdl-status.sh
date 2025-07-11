@@ -29,6 +29,7 @@ for mname in $mnames; do
    data_dir="$MDL_ENVS_DIR/$mname/data"
    src_dir="$MDL_ENVS_DIR/$mname/src"
    sql_path="$MDL_ENVS_DIR/$mname/backup.sql"
+   custom_path="$MDL_ENVS_DIR/$mname/custom-config.sh"
    db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
    docker_compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
 
@@ -45,6 +46,7 @@ for mname in $mnames; do
       [ -d "$data_dir" ] && data_status="${green}exists" || data_status="${red}missing"
       [ -d "$src_dir" ] && src_status="${green}exists" || src_status="${red}missing"
       [ -f "$sql_path" ] && sql_status="${green}exists" || sql_status="${red}missing"
+      [ -f "$custom_path" ] && custom_status="${green}exists" || custom_status="${red}not required"
       [ -n "$db_vol_name" ] && db_status="${green}exists" || db_status="${red}missing"
       # If db volume was not found, set the name to what it should've been
       [ -z "$db_vol_name" ] && db_vol_name="${mname}_db"
@@ -52,6 +54,7 @@ for mname in $mnames; do
       echo "  - $data_dir ($data_status$norm)"
       echo "  - $src_dir ($src_status$norm)"
       echo "  - $sql_path ($sql_status$norm)"
+      echo "  - $custom_path ($custom_status$norm)"
       echo "  - $db_vol_name ($db_status$norm)"
       # List Backups
       "$scr_dir/mdl-ls.sh" "$mname" "${mdl_ls_params[@]}"
