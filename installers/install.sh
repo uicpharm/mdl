@@ -52,7 +52,7 @@ if $dev; then
    echo "Installed mdl in developer mode as a symlink at: $mdl_dest"
 else
    url=https://github.com/uicpharm/mdl/archive/refs/heads/main.tar.gz
-   url=https://github.com/uicpharm/mdl/archive/refs/heads/jcurt/public.tar.gz # TODO: temp
+   url=https://github.com/uicpharm/mdl/archive/refs/heads/jcurt/perm-problems.tar.gz # TODO: temp
    dir=$(mktemp -d)
    curl -fsL $url | tar xz --strip-components=1 -C "$dir"
    # shellcheck source=../lib/mdl-common.sh
