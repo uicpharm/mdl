@@ -24,8 +24,13 @@ config_status="✅"
 [[ ! -f $MDL_CONFIG_FILE ]] && ok=false && config_status="❌"
 version_status="✅"
 [[ ! -f $MDL_VERSIONS_FILE ]] && ok=false && version_status="❌"
+mdl_path=$ul$(which mdl)$rmul
+mdl_realpath=$ul$(realpath "$(which mdl)")$rmul
+[[ $mdl_path == "$mdl_realpath" ]] && mdl_status="at $mdl_path" || mdl_status="in dev mode at $mdl_realpath"
 $quiet || (
    $display_title && echo "$mdl_title"
+   echo "The ${red}mdl$norm CLI is installed $mdl_status."
+   echo
    echo "${bold}${ul}Configuration$norm"
    echo "${bold}Config file:$norm $MDL_CONFIG_FILE $config_status"
    echo "${bold}Versions file:$norm $MDL_VERSIONS_FILE $version_status"
