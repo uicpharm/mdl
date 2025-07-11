@@ -49,8 +49,9 @@ if $should_init_system; then
    MDL_VERSIONS_SOURCE_CHECK_FREQUENCY=$(ask "How often do you want to check for updates to the versions file (in seconds)?" "$MDL_VERSIONS_SOURCE_CHECK_FREQUENCY")
    $(if_sudo "$MDL_ROOT") install -m 0770 -o "$(whoami)" -d "$MDL_ROOT"
    sudo=$(if_sudo "$MDL_CONFIG_FILE")
+   [[ -n $sudo ]] && echo "I will use $sudo when writing to $MDL_CONFIG_FILE."
    $sudo echo '# This file is used to configure the mdl script.' > "$MDL_CONFIG_FILE"
-   echo
+   $sudo echo > "$MDL_CONFIG_FILE"
    for x in MDL_ENVS_DIR MDL_BACKUP_DIR MDL_COMPOSE_DIR MDL_VERSIONS_FILE MDL_VERSIONS_SOURCE_URL MDL_VERSIONS_SOURCE_CHECK_FREQUENCY; do
       $sudo echo "$x='${!x}'" >> "$MDL_CONFIG_FILE"
    done
