@@ -20,9 +20,9 @@ EOF
 
 # Calculate all environments in the environments directory (just the local directory name)
 envs=()
-for d in "$MDL_ENVS_DIR"/*/; do
+while read -r d; do
    envs+=("$(basename "$d")")
-done
+done < <(find "$MDL_ENVS_DIR" -mindepth 1 -maxdepth 1 -type d)
 
 # Assign "targ" the first param. But don't allow "all" if they said "--no-all"
 [[ "$*" == *"--no-all"* && "$1" == "all" ]] && targ="" || targ="$1"

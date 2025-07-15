@@ -43,10 +43,11 @@ environment variable named ${ul}MOODLE_PORT$rmul.
 $(
    printf "$ul$port_chart_settings$rmul" "Environment" "Port"
    num=8000
-   for dir in "$MDL_ENVS_DIR"/*/; do
+   while read -r dir; do
       (( num++ ))
       printf "$port_chart_settings" "$(basename "$dir")" "$num"
-   done
+   done < <(find "$MDL_ENVS_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
+   (( num == 8000 )) && echo 'No environments found.'
 )
 
 Options:
@@ -78,10 +79,10 @@ export MOODLE_IMAGE="docker.io/bitnami/moodle:$moodle_ver"
 
 # Calculate Moodle port
 num=8000
-for dir in "$MDL_ENVS_DIR"/*/; do
+while read -r dir; do
    (( num++ ))
    if [[ $(basename "$dir") == "$mname" ]]; then
       export MOODLE_PORT=$num
       break
    fi
-done
+done < <(find "$MDL_ENVS_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
