@@ -27,28 +27,36 @@ targetbranch="$2"
 
 for mname in $mnames; do
 
-   if [ ! -d "$MDL_ENVS_DIR/$mname/src" ]; then
-      echo "Source code directory does not exist for $mname. Can't upgrade."
+   src_vol_name=${src_vol_name:-$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)}
+   if [ -z "$src_vol_name" ]; then
+      echo "Source code volume does not exist for $mname. Can't upgrade."
       exit 1
    fi
 
+   # Stop the services if they're running
+   "$scr_dir/mdl-stop.sh" "$mname"
+
    echo "Upgrading $mname..."
-   pushd "$MDL_ENVS_DIR/$mname/src" || exit 1
+   function git_cmd() {
+      docker run --rm --name "${mname}_worker_git" \
+         -v "$src_vol_name":/src -w /src "$MDL_GIT_IMAGE" \
+         -c safe.directory=/src "$@"
+   }
 
    # Pull latest repo data
-   git remote set-url origin https://github.com/moodle/moodle.git
-   git fetch -np
+   git_cmd remote set-url origin https://github.com/moodle/moodle.git
+   git_cmd fetch -np
 
    # Remove any untracked code
-   git stash save -u
-   git reset --hard
-   git clean -dfe local
-   curr_branch="$(git symbolic-ref --short HEAD)"
+   git_cmd stash save -u
+   git_cmd reset --hard
+   git_cmd clean -dfe local
+   curr_branch="$(git_cmd symbolic-ref --short HEAD)"
    echo "Your current branch: $curr_branch"
-   git status -s -b
+   git_cmd status -s -b
 
    # Get list of branches. If targetbranch isn't in list, prompt user to select one
-   targetbranches="$(git branch -lr | grep -E "MOODLE_[3-9][0-9]+_STABLE" | cut -d"/" -f2)"
+   targetbranches="$(git_cmd branch -lr | grep -E "MOODLE_[3-9][0-9]+_STABLE" | cut -d"/" -f2)"
    echo "$targetbranches" | grep -qw "$targetbranch" || targetbranch=""
    if  [ -z "$targetbranch" ]; then
       PS3="Select the version to upgrade to: "
@@ -61,15 +69,13 @@ for mname in $mnames; do
 
    # Pull/checkout new code
    if [ "$curr_branch" = "$targetbranch" ]; then
-      git pull --ff-only --no-tags
+      git_cmd pull --ff-only --no-tags
    else
-      git checkout -f --guess "$targetbranch"
+      git_cmd checkout -f --guess "$targetbranch"
    fi
 
    # Pop stash
-   git stash pop
-
-   popd || exit 1
+   git_cmd stash pop
 
    echo 'Done!'
 

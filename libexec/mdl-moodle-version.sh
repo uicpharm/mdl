@@ -19,9 +19,13 @@ EOF
 
 mname=$("$scr_dir/mdl-select-env.sh" "$1" --no-all)
 branchver="0"
-if [ -d "$MDL_ENVS_DIR/$mname/src" ]; then
-   cd "$MDL_ENVS_DIR/$mname/src" || exit 1
-   branchver="$(git symbolic-ref --short HEAD | cut -d"_" -f2)"
+src_vol_name=${src_vol_name:-$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)}
+if [ -n "$src_vol_name" ]; then
+   branchver=$(docker run --rm -t --name "${mname}_worker_git" -v "$src_vol_name":/src -w /src "$MDL_GIT_IMAGE" \
+      -c safe.directory=/src \
+      symbolic-ref --short HEAD | \
+      cut -d'_' -f2 \
+   )
 fi
 # If not numeric, set to zero.
 [[ "$branchver" =~ ^[0-9]+$ ]] || branchver="0"

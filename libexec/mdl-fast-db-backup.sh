@@ -52,7 +52,7 @@ for mname in $mnames; do
    "$scr_dir/mdl-stop.sh" "$mname"
 
    db_target="${mname}_${label}_dbfiles.tar"
-   docker run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup docker.io/alpine:3 tar cf "/backup/$db_target" -C /db .
+   docker run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup "$MDL_SHELL_IMAGE" tar cf "/backup/$db_target" -C /db .
 
    echo "Fast backup of $mname is done!"
 

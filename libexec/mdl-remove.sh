@@ -74,9 +74,13 @@ for mname in $mnames; do
    else
       # Remove a moodle environment
       echo "Removing data for $mname environment..."
-      rm -Rf "$MDL_ENVS_DIR/$mname/data" "$MDL_ENVS_DIR/$mname/src" "$MDL_ENVS_DIR/$mname/backup.sql"
-      db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
-      [ -n "$db_vol_name" ] && echo "Clearing the database Docker volume... $(docker volume rm "$db_vol_name")"
+      vols=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname")
+      db_vol_name=$(grep db <<< "$vols")
+      data_vol_name=$(grep data <<< "$vols")
+      src_vol_name=$(grep src <<< "$vols")
+      [ -n "$db_vol_name" ] && echo "Clearing the database volume... $(docker volume rm "$db_vol_name")"
+      [ -n "$data_vol_name" ] && echo "Clearing the data volume... $(docker volume rm "$data_vol_name")"
+      [ -n "$src_vol_name" ] && echo "Clearing the source volume... $(docker volume rm "$src_vol_name")"
       if $env; then
          echo "Removing the entire $mname environment itself..."
          rm -Rf "${MDL_ENVS_DIR:?}/${mname:?}"

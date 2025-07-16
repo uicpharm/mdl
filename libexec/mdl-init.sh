@@ -164,6 +164,7 @@ if [[ -n $mname ]]; then
             exit 1
          fi
       fi
+      # TODO: Instantiate volumes with a starter Moodle environment/database.
       echo 🎉 Done!
    else
       echo "Environment $ul$mname$rmul is already initialized!" >&2

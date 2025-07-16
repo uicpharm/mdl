@@ -16,8 +16,7 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-activemname=$("$scr_dir/mdl-active-env.sh")
-mname=$("$scr_dir/mdl-select-env.sh" "${1:-$activemname}" --no-all)
+mname=$("$scr_dir/mdl-select-env.sh" "${1:-$("$scr_dir/mdl-active-env.sh")}" --no-all)
 
 # Do not attempt if containers do not exist
 containers="$(docker ps -q -f name="$mname" 2> /dev/null)"

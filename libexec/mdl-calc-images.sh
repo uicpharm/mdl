@@ -86,7 +86,7 @@ else
    mname=$("$scr_dir/mdl-select-env.sh" "$1" --no-all)
 fi
 
-branchver=$("$scr_dir/mdl-moodle-version.sh" "$mname")
+branchver=${branchver:-$("$scr_dir/mdl-moodle-version.sh" "$mname")}
 
 # Handle defaults if an unexpected branch version is used
 assumed_branchver=$branchver

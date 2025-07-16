@@ -128,7 +128,7 @@ for mname in $mnames; do
       container=$(eval "$ssh_cmd docker ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep $app | head -1")
       [[ -z $container ]] && echo "${red}No $mname $app container found.$norm" >&2 && exit 1
       name="$container-tunnel-$port"
-      cmd="docker run --rm -d --name=$name --network=${mname}_backend -p $port:$port docker.io/alpine/socat TCP-LISTEN:$port,fork TCP:$container:$port"
+      cmd="docker run --rm -d --name=$name --network=${mname}_backend -p $port:$port $MDL_SOCAT_IMAGE TCP-LISTEN:$port,fork TCP:$container:$port"
       ssh_post_cmd=${host:+"ssh -f -N -L $port:localhost:$port $ssh_args $host"}
    elif [[ $action == stop ]]; then
       container=$(eval "$ssh_cmd docker ps --format '{{.Names}}' | grep $mname | grep $app | grep tunnel | grep $port | head -1")

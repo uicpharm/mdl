@@ -21,16 +21,17 @@ EOF
 [[ $* =~ -q || $* =~ --quiet ]] && quiet=true || quiet=false
 
 mnames=$("$scr_dir/mdl-select-env.sh" "${1:-all}")
-ok=true
+success=true
 
 for mname in $mnames; do
 
    running="$(docker ps -q -f name="$mname")"
-   data_dir="$MDL_ENVS_DIR/$mname/data"
-   src_dir="$MDL_ENVS_DIR/$mname/src"
-   sql_path="$MDL_ENVS_DIR/$mname/backup.sql"
+   env_path="$MDL_ENVS_DIR/$mname/.env"
    custom_path="$MDL_ENVS_DIR/$mname/custom-config.sh"
-   db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
+   vols=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname")
+   db_vol_name=$(grep db <<< "$vols")
+   data_vol_name=$(grep data <<< "$vols")
+   src_vol_name=$(grep src <<< "$vols")
    docker_compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
 
    $quiet || echo "${ul}Environment: $bold$mname$norm"
@@ -39,23 +40,25 @@ for mname in $mnames; do
       $quiet || echo "Status: ${green}running${norm}"
    else
       $quiet || echo "Status: ${red}not running${norm}"
-      ok=false
+      success=false
    fi
    $quiet || (
       # Path info
-      [ -d "$data_dir" ] && data_status="${green}exists" || data_status="${red}missing"
-      [ -d "$src_dir" ] && src_status="${green}exists" || src_status="${red}missing"
-      [ -f "$sql_path" ] && sql_status="${green}exists" || sql_status="${red}missing"
-      [ -f "$custom_path" ] && custom_status="${green}exists" || custom_status="${red}not required"
+      [ -f "$env_path" ] && env_status="${green}exists" || env_status="${red}missing"
+      [ -f "$custom_path" ] && custom_status="${green}exists" || custom_status="${red}missing/optional"
       [ -n "$db_vol_name" ] && db_status="${green}exists" || db_status="${red}missing"
-      # If db volume was not found, set the name to what it should've been
+      [ -n "$data_vol_name" ] && data_status="${green}exists" || data_status="${red}missing"
+      [ -n "$src_vol_name" ] && src_status="${green}exists" || src_status="${red}missing"
+      # If volumes were not found, set the name to what it should've been
       [ -z "$db_vol_name" ] && db_vol_name="${mname}_db"
+      [ -z "$data_vol_name" ] && data_vol_name="${mname}_data"
+      [ -z "$src_vol_name" ] && src_vol_name="${mname}_src"
       echo "Paths:"
-      echo "  - $data_dir ($data_status$norm)"
-      echo "  - $src_dir ($src_status$norm)"
-      echo "  - $sql_path ($sql_status$norm)"
+      echo "  - $env_path ($env_status$norm)"
       echo "  - $custom_path ($custom_status$norm)"
       echo "  - $db_vol_name ($db_status$norm)"
+      echo "  - $data_vol_name ($data_status$norm)"
+      echo "  - $src_vol_name ($src_status$norm)"
       # List Backups
       "$scr_dir/mdl-ls.sh" "$mname" "${mdl_ls_params[@]}"
       # If running, the services list
@@ -71,4 +74,4 @@ for mname in $mnames; do
 done
 
 # If an environment was not running, exit as an error
-[ "$ok" == true ] && exit 0 || exit 1
+$success && exit 0 || exit 1

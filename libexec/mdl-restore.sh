@@ -98,45 +98,87 @@ for mname in $mnames; do
       fi
    done
 
-   # Docker environment paths
-   data_path="$env_dir/data"
-   src_path="$env_dir/src"
-   sql_path="$env_dir/backup.sql"
-
    # Stop the services if they're running
    "$scr_dir/mdl-stop.sh" "$mname"
 
-   # Clear existing work files
+   # Clear existing volumes
    "$scr_dir/mdl-remove.sh" "$mname"
 
-   # Checks
-   docker_id="$(id -u docker 2>/dev/null)"
+   echo 'Determining Moodle version from source...'
 
-   # Set up the directory for the Moodle environment
-   mkdir -p "$data_path/sessions"
-   mkdir -p "$data_path/trashdir"
-   mkdir -p "$data_path/temp"
-   mkdir -p "$data_path/localcache"
-   mkdir -p "$data_path/cache"
-   mkdir -p "$src_path"
+   # Restore src to a temp volume first, to retrieve the git branch version
+   temp_vol_name="${mname}_temp"
+   docker volume rm -f "$temp_vol_name" > /dev/null
+   docker run --rm --name "${mname}_worker_tar_src" -v "$temp_vol_name":/src -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
+      tar xf "/backup/$src_target" -C /src
+   branchver=$(src_vol_name="$temp_vol_name" "$scr_dir/mdl-moodle-version.sh" "$mname")
+   . "$scr_dir/mdl-calc-images.sh" "$mname"
 
-   echo Restoring...
+   echo 'Creating containers and volumes for restore...'
 
-   # Extract SQL backup file, which docker-compose file points to for restore
+   # Create the stack, so we have the volumes that are auto-attached to the stack
+   branchver="$branchver" "$scr_dir/mdl-start.sh" "$mname" -q -n
+
+   # Find all the volume names
+   vols=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname")
+   db_vol_name=$(grep db <<< "$vols")
+   data_vol_name=$(grep data <<< "$vols")
+   src_vol_name=$(grep src <<< "$vols")
+
+   # Extract src and data to their volumes
+   echo "Restoring $ul$src_vol_name$norm and $ul$data_vol_name$norm volumes..."
+   docker run --rm --name "${mname}_worker_tar_data" -v "$data_vol_name":/data -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
+      sh -c "\
+         mkdir -p /data/sessions /data/trashdir /data/temp /data/localcache /data/cache
+         tar xf '/backup/$data_target' -C /data
+         chown -R daemon:daemon /data
+         chmod -R g+rwx /data
+      " &
+   pid_data=$!
+   docker run --rm --name "${mname}_worker_cp_src" -v "$src_vol_name":/src -v "$temp_vol_name":/temp:ro "$MDL_SHELL_IMAGE" \
+      sh -c "\
+         cp -Rf /temp/. /src
+         chown -R daemon:daemon /src
+         chmod -R g+rwx /src
+      " &
+   pid_src=$!
+
+   # Start a MariaDB container to restore the database
    (
-      # If the decompression fails, that probably means it isn't compressed.
-      # Copy the original file instead.
+      echo "Restoring $ul$db_vol_name$norm volume..."
+      sql_path="$(mktemp -d)/${mname}_backup.sql"
       if ! decompress "$MDL_BACKUP_DIR/$db_target" "$sql_path" -k > /dev/null; then
-         cp "$MDL_BACKUP_DIR/$db_target" "$sql_path"
-      fi && \
-      [ -n "$docker_id" ] && chown "$docker_id" "$sql_path"
+         # If decompression fails, it probably isn't compressed. Point at original file instead.
+         sql_path="$MDL_BACKUP_DIR/$db_target"
+      fi
+      db_runner="${mname}_worker_db_restore"
+      docker run -d --rm --name "$db_runner" \
+         --privileged \
+         -e MARIADB_ROOT_PASSWORD="${ROOT_PASSWORD:-password}" \
+         -e MARIADB_USER="${DB_USERNAME:-moodleuser}" \
+         -e MARIADB_PASSWORD="${DB_PASSWORD:-password}" \
+         -e MARIADB_DATABASE="${DB_NAME:-moodle}" \
+         -e MARIADB_COLLATE=utf8mb4_unicode_ci \
+         -e MARIADB_SKIP_TEST_DB=yes \
+         -v "$db_vol_name":/bitnami/mariadb \
+         -v "$sql_path":/docker-entrypoint-initdb.d/restore.sql:Z,ro \
+         "$MARIADB_IMAGE" > /dev/null
+      # MariaDB doesn't have a "run task and exit" mode, so we just wait until
+      # the logs indicate it has finished, then we stop it.
+      last_check=0
+      until docker logs --since "$last_check" "$db_runner" 2>&1 | grep -q 'MariaDB setup finished'; do
+         last_check=$(($(date +%s)-1))
+         sleep 5
+      done
+      docker stop "$db_runner" > /dev/null
    ) &
+   db_pid=$!
 
-   # Extract source and data.
-   tar xf "$MDL_BACKUP_DIR/$data_target" -C "$data_path" &
-   tar xf "$MDL_BACKUP_DIR/$src_target" -C "$src_path" &
-
-   wait
+   # When done, clean up. Down the stack and remove the temp volume.
+   wait $pid_src
+   docker volume rm -f "$temp_vol_name" > /dev/null
+   wait $pid_data $db_pid
+   branchver="$branchver" "$scr_dir/mdl-stop.sh" "$mname" -q
 
    # Remove the local backup files when done, if they specified that option
    if $remove_when_done; then

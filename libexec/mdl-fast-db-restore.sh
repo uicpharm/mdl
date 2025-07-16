@@ -62,7 +62,7 @@ for mname in $mnames; do
 
    # Recreate volume and extract to the database volume
    docker volume create --label "com.docker.compose.project=$mname" "$db_vol_name"
-   docker run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup docker.io/alpine:3 tar xf "/backup/$db_target" -C /db
+   docker run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup "$MDL_SHELL_IMAGE" tar xf "/backup/$db_target" -C /db
 
    echo "Done restoring the fast backup of database for $mname with label $label."
 

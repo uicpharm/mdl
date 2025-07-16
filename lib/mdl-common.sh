@@ -3,6 +3,9 @@
 # shellcheck disable=SC2155
 
 # Defaults
+export MDL_GIT_IMAGE=docker.io/alpine/git:v2.49.1
+export MDL_SHELL_IMAGE=docker.io/busybox:1
+export MDL_SOCAT_IMAGE=docker.io/alpine/socat:1.8.0.3
 export MDL_BASE_URL=https://raw.githubusercontent.com/uicpharm/mdl/refs/heads/main
 if [[ $EUID -eq 0 ]]; then
    cfg_file=/etc/mdl.conf

@@ -10,20 +10,17 @@ valid_compress='bzip2 gzip xz none'
 default_modules='src data db'
 default_compress_arg='bzip2'
 default_label=$(date +%Y%m%d)
-default_dest=$MDL_BACKUP_DIR
 
 # Apply Defaults
 modules=$default_modules
 compress_arg=$default_compress_arg
 label=$default_label
-dest=$default_dest
 
 # Declarations
 source_host=
 source_type=
 compress_flag=
 ssh_args=
-sync=false
 verbose=false
 dry_run=false
 
@@ -31,12 +28,11 @@ dry_run=false
 display_help() {
    cat <<EOF
 Usage:
-  $(script_name) <ENV> container [HOST:][SOURCE] [DEST] [OPTIONS]
-  $(script_name) <ENV> lamp [HOST] [DEST] [OPTIONS]
+  $(script_name) <ENV> <container/lamp> [SOURCE] [OPTIONS]
 
 Make a backup of a Moodle environment. This can be a ${ul}container$norm environment or a
-${ul}LAMP$norm environment, and it can be local or remote. However, the backup file can
-only be saved to a local destination. If you want to send a backup to a remote
+${ul}LAMP$norm environment, and it can be local or remote. However, the backup files will
+be saved in the standard Moodle backups directory. If you want to send a backup to another
 destination, use the ${ul}mdl cp$norm command to copy the backup after you've made it.
 
 All options can be set in the environment's $ul.env$norm file. If you use the parameter
@@ -47,20 +43,20 @@ Options:
 -l, --label     Label for the backup. Default is today's date. (i.e. $ul$default_label$norm)
 -m, --modules   Which module to backup. ($(echo "${valid_modules}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
 -c, --compress  Which compression, default is $ul$default_compress_arg$norm. ($(echo "${valid_compress}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
--s, --sync      Instead of saving a backup file, sync the local environment.
--e, --ssh-args  Additional SSH arguments to pass when using rsync/ssh.
+-e, --ssh-args  Additional SSH arguments to pass when using ssh.
 -n, --dry-run   Show what would've happened without executing.
 -v, --verbose   Provide more verbose output.
 
 Source Options (for both LAMP and container sources):
---source-data-path      Path on source server to data path.
---source-src-path       Path on source server to src path.
+--source-host           Hostname or IP of source.
+--source-sudo           Use sudo command when connecting to source.
 --source-db-name        Name of the source database.
 --source-db-username    Username for source database access.
 --source-db-password    Password for source database access.
 
 Source Options (only for LAMP sources):
---source-host           Hostname or IP of source.
+--source-data-path      Path on source server to data path.
+--source-src-path       Path on source server to src path.
 EOF
 }
 
@@ -81,24 +77,16 @@ else
    source_type="$(echo "$1" | tr '[:upper:]' '[:lower:]' | tr -d 's')"
    shift
 fi
+[[ $source_type == container ]] && is_container=true || is_container=false
 
-# Positional parameter #3: Source
-if [[ $source_type == container ]]; then
-   if [[ $1 == -* || -z $1 ]]; then
-      # If not provided, we assume it is this local environment
-      source_full=$MDL_ENVS_DIR
-   else
-      source_full=$1
-      shift
-   fi
-elif [[ $source_type != lamp ]]; then
+if [[ $source_type != lamp && $source_type != container ]]; then
    echo -e "${red}Source type must be ${ul}container$rmul or ${ul}lamp$rmul.$norm\n" >&2
    display_help; exit 1;
 fi
 
-# Positional parameter #4: Destination
+# Positional parameter #3: Source
 if [[ $1 != -* && -n $1 ]]; then
-   dest=$(realpath "$1") || exit 1
+   source_full=$1
    shift
 fi
 
@@ -120,11 +108,11 @@ while getopts hsvnl:m:e:c:-: OPT; do
          compress_arg=$(echo "$OPTARG" | tr '[:upper:]' '[:lower:]')
          ;;
       e | ssh-args) ssh_args=$OPTARG ;;
-      s | sync) sync=true ;;
       v | verbose) verbose=true ;;
       n | dry-run) dry_run=true ;;
       l | label) label=$OPTARG ;;
       source-host) param_source_host=$OPTARG ;;
+      source-sudo) param_source_sudo=$OPTARG ;;
       source-data-path) param_source_data_path=$OPTARG ;;
       source-src-path) param_source_src_path=$OPTARG ;;
       source-db-name) param_source_db_name=$OPTARG ;;
@@ -139,13 +127,6 @@ shift $((OPTIND - 1))
 #
 # Calculations
 #
-
-# Disable some settings if sync is turned on
-if $sync; then
-   compress_arg=none
-   dest=''
-   label=''
-fi
 
 # Figure out the compression flag to send to tar
 [[ $compress_arg != none ]] && compress_flag="--$compress_arg"
@@ -188,6 +169,7 @@ for mname in $mnames; do
 
    # Reset these values to empty string or the originally set parameter
    source_host=$param_source_host
+   source_sudo=$param_source_sudo
    source_data_path=$param_source_data_path
    source_src_path=$param_source_src_path
    source_db_name=$param_source_db_name
@@ -198,18 +180,26 @@ for mname in $mnames; do
    # Calculations (Before .env load)
    #
 
-   # For "container", find base and host parts from full source path (i.e. `server:/my/path` or `/my/path`)
+   # Find base and host parts from full source path (i.e. `server:/my/path` or `user@server`)
    if [[ -n $source_full ]]; then
       source_host=$(echo "$source_full" | cut -d ':' -f1)
-      source_base=$(echo "$source_full" | cut -d ':' -f2)
-      # No colon, thus base/host are same? Assume it is a local path.
-      [ "$source_host" = "$source_base" ] && source_host=''
-      # If host is empty, calculate real path of base, proving it exists.
-      if [[ -z $source_host ]]; then source_base=$(realpath "$source_base") || exit 1; fi
+      source_host_server=$(echo "$source_host" | cut -d '@' -f2)
+      # We only calculate source_base when not working on containers
+      $is_container || source_base=$(echo "$source_full" | cut -d ':' -f2)
+      # No colon, thus base/host are same? Assume it is a host.
+      [ "$source_host" = "$source_base" ] && source_base=''
+   fi
+   # If host is empty, calculate real path of base, proving it exists.
+   if [[ -z $source_host && -n $source_base ]]; then
+      source_base=$(realpath "$source_base") || exit 1
    fi
    # If base exists, set "data" and "src" paths if they didn't provide custom paths``
-   [[ -n $source_base && -z $source_data_path ]] && source_data_path=$source_base/$mname/data
-   [[ -n $source_base && -z $source_src_path ]] && source_src_path=$source_base/$mname/src
+   [[ -n $source_base && -z $source_data_path ]] && source_data_path=$source_base/data
+   [[ -n $source_base && -z $source_src_path ]] && source_src_path=$source_base/src
+
+   #
+   # Calculations
+   #
 
    # Get environment values and use them when no local value provided.
    # shellcheck source=../environments/sample.env
@@ -222,32 +212,40 @@ for mname in $mnames; do
       done
    fi
    # Assign source values from environment
-   for env_var in SOURCE_DATA_PATH SOURCE_SRC_PATH SOURCE_DB_NAME SOURCE_DB_USERNAME SOURCE_DB_PASSWORD; do
+   $is_container && var_ignore_list='source_data_path source_src_path'
+   for env_var in SOURCE_DATA_PATH SOURCE_SRC_PATH SOURCE_SUDO SOURCE_DB_NAME SOURCE_DB_USERNAME SOURCE_DB_PASSWORD; do
       local_var=$(echo "$env_var" | tr '[:upper:]' '[:lower:]')
+      [[ $var_ignore_list =~ $local_var ]] && continue
       [[ -z ${!local_var} ]] && declare "$local_var"="${!env_var}"
    done
-   # Assign source values that only apply to "lamp" source type
-   [[ $source_type == lamp && -z $source_host ]] && declare source_host=$SOURCE_HOST
-
-   #
-   # Calculations
-   #
 
    # Host server, and whether it's reachable
-   source_host_server=$(echo "$source_host" | cut -d '@' -f2)
    if [[ -n $source_host_server ]]; then
       ping -c 1 "$source_host_server" &> /dev/null && source_host_reachable=true || source_host_reachable=false
    fi
 
    # If "container", the container must be active in order to dump the database for the "db" module.
    source_db_container=''
-   if [[ $source_type == container ]] && [[ $modules =~ db ]]; then
-      source_db_container_cmd="
-         ${source_host:+"ssh $ssh_args $source_host sudo"} \
-         docker ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep mariadb | head -1
-      "
-      source_db_container=$(eval "$source_db_container_cmd")
-      [[ -z $source_db_container ]] && echo "${red}The database container cannot be found. Aborting." >&2 && exit 1
+   if $is_container; then
+      if [[ $modules =~ db ]]; then
+         source_db_container_cmd="
+            ${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
+            docker ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep mariadb | head -1
+            ${source_host:+"\\\"\""}
+         "
+         source_db_container=$(eval "$source_db_container_cmd")
+         [[ -z $source_db_container ]] && echo "${red}The database container cannot be found. Start the environment to perform a backup." >&2 && exit 1
+      fi
+      if [[ $modules =~ data || $modules =~ src ]]; then
+         vols_cmd="
+            ${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
+            docker volume ls -q --filter 'label=com.docker.compose.project=$mname'
+            ${source_host:+"\\\"\""}
+         "
+         vols=$(eval "$vols_cmd")
+         [[ $modules =~ data ]] && source_data_volume=$(grep data <<< "$vols")
+         [[ $modules =~ src ]] && source_src_volume=$(grep src <<< "$vols")
+      fi
    fi
 
    # Password mask
@@ -262,38 +260,31 @@ for mname in $mnames; do
    esac
 
    # Targets
-   if $sync; then
-      dest="$MDL_ENVS_DIR/$mname"
-      [[ $modules =~ data ]] && data_target="$dest/data"
-      [[ $modules =~ src ]] && src_target="$dest/src"
-      [[ $modules =~ db ]] && db_target="$dest/backup.sql"
-   else
-      [[ $modules =~ data ]] && data_target="$dest/${mname}_${label}_data.tar$compress_ext"
-      [[ $modules =~ src ]] && src_target="$dest/${mname}_${label}_src.tar$compress_ext"
-      [[ $modules =~ db ]] && db_target="$dest/${mname}_${label}_db.sql$compress_ext"
-   fi
+   [[ $modules =~ data ]] && data_target="$MDL_BACKUP_DIR/${mname}_${label}_data.tar$compress_ext"
+   [[ $modules =~ src ]] && src_target="$MDL_BACKUP_DIR/${mname}_${label}_src.tar$compress_ext"
+   [[ $modules =~ db ]] && db_target="$MDL_BACKUP_DIR/${mname}_${label}_db.sql$compress_ext"
 
-   $sync && action_word='Syncing' || action_word='Backing up'
+   action_word='Backing up'
    echo -e "$ul$bold$action_word $mname environment$norm"
    if $verbose; then
       echo
-      echo "$bold        Type:$norm $source_type"
-      [[ -n $source_host ]] && echo "$bold        Host:$norm $source_host ($($source_host_reachable && echo "${green}reachable" || echo "${red}unreachable!")$norm)"
-      [[ -n $source_base ]] && echo "$bold   Base Path:$norm $source_base"
-      echo "$bold  'src' Path:$norm $source_src_path"
-      echo "$bold 'data' Path:$norm $source_data_path"
-      [[ -n $source_db_container ]] && echo "${bold}DB Container:$norm $source_db_container"
-      [[ -n $source_db_name ]] && echo "$bold     DB Name:$norm $source_db_name"
-      [[ -n $source_db_username ]] && echo "$bold DB Username:$norm $source_db_username"
-      [[ -n $source_db_password ]] && echo "$bold DB Password:$norm $source_db_password_mask"
+                                       echo "$bold          Type:$norm $source_type"
+      [[ -n $source_host ]] &&         echo "$bold          Host:$norm $source_host ($($source_host_reachable && echo "${green}reachable" || echo "${red}unreachable!")$norm)"
+      [[ -n $source_src_path ]] &&     echo "$bold    'src' Path:$norm $source_src_path"
+      [[ -n $source_data_path ]] &&    echo "$bold   'data' Path:$norm $source_data_path"
+      [[ -n $source_src_volume ]] &&   echo "$bold  'src' Volume:$norm $source_src_volume"
+      [[ -n $source_data_volume ]] &&  echo "$bold 'data' Volume:$norm $source_data_volume"
+      [[ -n $source_db_container ]] && echo "$bold  DB Container:$norm $source_db_container"
+      [[ -n $source_db_name ]] &&      echo "$bold       DB Name:$norm $source_db_name"
+      [[ -n $source_db_username ]] &&  echo "$bold   DB Username:$norm $source_db_username"
+      [[ -n $source_db_password ]] &&  echo "$bold   DB Password:$norm $source_db_password_mask"
       echo
-      [[ -n $dest ]] && echo "$bold Destination:$norm $dest"
-      [[ -n $label ]] && echo "$bold       Label:$norm $label"
-      echo "$bold     Modules:$norm $modules"
-      echo "$bold    Compress:$norm $compress_arg"
-      [[ -n $src_target ]] && echo "$bold  'src' Path: $norm$src_target"
-      [[ -n $data_target ]] && echo "$bold 'data' Path: $norm$data_target"
-      [[ -n $db_target ]] && echo "$bold     DB Path: $norm$db_target"
+      [[ -n $label ]] &&               echo "$bold         Label:$norm $label"
+                                       echo "$bold       Modules:$norm $modules"
+                                       echo "$bold      Compress:$norm $compress_arg"
+      [[ -n $src_target ]] &&          echo "$bold    'src' Path:$norm $src_target"
+      [[ -n $data_target ]] &&         echo "$bold   'data' Path:$norm $data_target"
+      [[ -n $db_target ]] &&           echo "$bold       DB Path:$norm $db_target"
       echo
    fi
 
@@ -302,64 +293,33 @@ for mname in $mnames; do
       exit 1
    fi
 
-   # Stop the services if they're running (for sync only)
-   if $sync; then
-      if $dry_run; then
-         echo -e "${red}We would stop $mname container, but this is a dry run.$norm\n"
-      else
-         "$scr_dir/mdl-stop.sh" "$mname"
-      fi
-   fi
-
-   if $sync; then
-      # Only for rsync, it wants the source dir to have an ending slash
-      [[ $source_data_path != */ ]] && source_data_path="$source_data_path/"
-      [[ $source_src_path != */ ]] && source_src_path="$source_src_path/"
-      # shellcheck disable=SC2034
-      data_cmd="
-         rsync -aLq --delete --progress \
-            -e 'ssh $ssh_args' \
-            --rsync-path='sudo rsync' \
-            --exclude='/trashdir/' \
-            --exclude='/temp/' \
-            --exclude='/sessions/' \
-            --exclude='/localcache/' \
-            --exclude='/cache/' \
-            --exclude='/moodle-cron.log' \
-            '$source_host:$source_data_path' '$data_target'
-      "
-      # shellcheck disable=SC2034
-      src_cmd="
-         rsync -aLq --delete --progress \
-            -e 'ssh $ssh_args' \
-            --rsync-path='sudo rsync' \
-            '$source_host:$source_src_path' '$src_target'
-      "
-   else
-      # shellcheck disable=SC2034
-      data_cmd="
-         ${source_host:+"ssh $ssh_args $source_host sudo"} \
-         tar c $compress_flag \
-            --no-xattrs \
-            --exclude='./trashdir' \
-            --exclude='./temp' \
-            --exclude='./sessions' \
-            --exclude='./localcache' \
-            --exclude='./cache' \
-            --exclude='./moodle-cron.log' \
-            -C '$source_data_path' .
-      "
-      # shellcheck disable=SC2034
-      src_cmd="
-         ${source_host:+"ssh $ssh_args $source_host sudo"} \
-         tar c $compress_flag --no-xattrs -C '$source_src_path' .
-      "
-   fi
+   # shellcheck disable=SC2034
+   data_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
+   $is_container && data_cmd="$data_cmd docker run --rm --name '${mname}_worker_bk_data' -v '$source_data_volume':/data $MDL_SHELL_IMAGE"
+   data_cmd="$data_cmd \
+      tar c $compress_flag \
+         --exclude='./trashdir' \
+         --exclude='./temp' \
+         --exclude='./sessions' \
+         --exclude='./localcache' \
+         --exclude='./cache' \
+         --exclude='./moodle-cron.log' \
+         -C $($is_container && echo /data || echo "$source_data_path") . \
+   "
+   data_cmd=$data_cmd${source_host:+"\\\"\""}
+   # shellcheck disable=SC2034
+   src_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
+   $is_container && src_cmd="$src_cmd docker run --rm --name '${mname}_worker_bk_src' -v '$source_src_volume':/src $MDL_SHELL_IMAGE"
+   src_cmd="$src_cmd \
+      tar c $compress_flag \
+         -C $($is_container && echo /src || echo "$source_src_path") . \
+   "
+   src_cmd=$src_cmd${source_host:+"\\\"\""}
    # TODO: When piping to compression program, a failed status of mysqldump will be lost.
    # shellcheck disable=SC2034
-   db_cmd="
-      ${source_host:+"ssh $ssh_args $source_host sudo"} \
-      $([[ $source_type == container ]] && echo "docker exec '$source_db_container'") \
+   db_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
+   $is_container && db_cmd="$db_cmd docker exec '$source_db_container'"
+   db_cmd="$db_cmd \
       mysqldump \
          --user='$source_db_username' \
          --password='$source_db_password' \
@@ -367,7 +327,9 @@ for mname in $mnames; do
          -C -Q -e --create-options \
          $source_db_name \
    "
+   db_cmd=$db_cmd${source_host:+"\\\"\""}
    [[ $compress_arg != none ]] && db_cmd="$db_cmd | $compress_arg -cq9"
+   pids=()
    for t in data src db; do
       if [[ $modules =~ $t ]]; then
          targ_var=${t}_target; targ=${!targ_var}
@@ -379,35 +341,21 @@ for mname in $mnames; do
          if $dry_run; then
             echo -e "${red}Not executed. This is a dry run.$norm\n"
          else
-            # Wrap command in separate bash shell
-            cmd="/bin/bash -c \"$cmd\""
-            # Add redirection, but only when target is not a directory. If it's a directory, we assume
-            # we are trying to rsync. If not a directory (it is file or nonexistent), we assume it's a file.
-            test -d "$targ" && targ_is_dir=true || targ_is_dir=false
-            $targ_is_dir || cmd="$cmd > '$targ'"
+            cmd="$cmd > '$targ'"
             # Execute the command, and handle success/fail scenarios
             eval "$cmd" && success=true || success=false
-            if $success; then
-               # Handle database cleanup/permissions if syncing
-               if $sync && [[ $t == db ]]; then
-                  db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
-                  [[ -n $db_vol_name ]] && echo "Clearing the database Docker volume... $(docker volume rm "$db_vol_name")"
-                  docker_id="$(id -u docker 2>/dev/null)"
-                  [[ -n $docker_id && -n $targ ]] && chown "$docker_id" "$targ"
-               fi
-            else
+            if ! $success; then
                # Delete the target file if it failed
-               if ! $targ_is_dir; then
-                  rm "$targ"
-                  echo "Removed $(basename "$targ") because the $t backup failed." >&2
-               fi
+               rm "$targ"
+               echo "Removed $(basename "$targ") because the $t backup failed." >&2
             fi
          fi
       fi &
+      pids+=($!)
    done
 
    # TODO: It'd be nice if we check if any of the steps failed, and exit non-zero if so.
-   wait
+   wait "${pids[@]}"
    echo "$action_word of $mname environment is complete!"
 
 done
