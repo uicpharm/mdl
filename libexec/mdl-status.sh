@@ -20,6 +20,8 @@ EOF
 [[ $* =~ -b || $* =~ --box ]] && mdl_ls_params=(-b) || mdl_ls_params=()
 [[ $* =~ -q || $* =~ --quiet ]] && quiet=true || quiet=false
 
+requires docker docker-compose grep
+
 mnames=$("$scr_dir/mdl-select-env.sh" "${1:-all}")
 success=true
 

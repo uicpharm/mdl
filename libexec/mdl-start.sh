@@ -19,6 +19,8 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
+requires docker docker-compose
+
 mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 follow=false
 quiet=false

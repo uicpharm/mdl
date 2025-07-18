@@ -92,6 +92,8 @@ shift $((OPTIND - 1))
 # Validation
 #
 
+requires realpath find
+
 # Must either have a valid destination or indicate "box" flag.
 if [[ -z $dest ]] && ! $box; then
    echo "${red}${bold}You MUST provide a destination or send to Box with $ul--box$norm." >&2

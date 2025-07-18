@@ -24,6 +24,8 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
+requires docker
+
 mnames=$("$scr_dir"/mdl-select-env.sh "$1")
 
 for mname in $mnames; do

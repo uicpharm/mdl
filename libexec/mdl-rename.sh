@@ -48,6 +48,8 @@ else
    shift
 fi
 
+requires find sed grep
+
 # Collect optional arguments.
 # shellcheck disable=SC2214
 # spellchecker: disable-next-line

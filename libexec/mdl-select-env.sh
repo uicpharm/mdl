@@ -18,6 +18,8 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
+requires find grep
+
 # Calculate all environments in the environments directory (just the local directory name)
 envs=()
 while read -r d; do

@@ -80,10 +80,7 @@ shift $((OPTIND - 1))
 #
 
 # Requires curl and jq utilities
-if [[ -z $(which curl) ]] || [[ -z $(which jq) ]]; then
-   echo "${red}${bold}This command requires ${ul}curl$rmul and ${ul}jq$rmul to work.$norm" >&2
-   exit 1
-fi
+requires curl jq
 
 # Only valid actions
 if [[ ! "$valid_action" =~ $action ]]; then

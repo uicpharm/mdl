@@ -64,6 +64,8 @@ if [[ $1 != -* ]] && [[ -n $1 ]]; then
    shift
 fi
 
+requires docker ping grep head
+
 # Collect optional arguments.
 # shellcheck disable=SC2214
 # spellchecker: disable-next-line

@@ -22,6 +22,8 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
+requires docker grep cut
+
 mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 targetbranch="$2"
 

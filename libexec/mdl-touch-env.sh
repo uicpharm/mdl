@@ -17,6 +17,8 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
+requires touch grep
+
 mname=$("$scr_dir"/mdl-select-env.sh "$1" --no-all)
 env_path="$MDL_ENVS_DIR/$mname/.env"
 

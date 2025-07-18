@@ -19,6 +19,8 @@ EOF
 [[ $* =~ -q || $* =~ --quiet ]] && quiet=true || quiet=false
 [[ $* =~ --no-title ]] && display_title=false || display_title=true
 
+requires docker realpath
+
 ok=true
 config_status="✅" && [[ ! -f $MDL_CONFIG_FILE ]] && ok=false && config_status="❌"
 version_status="✅" && [[ ! -f $MDL_VERSIONS_FILE ]] && ok=false && version_status="❌"

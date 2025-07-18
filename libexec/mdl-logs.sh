@@ -16,6 +16,7 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
+requires docker docker-compose
 mname=$("$scr_dir/mdl-select-env.sh" "${1:-$("$scr_dir/mdl-active-env.sh")}" --no-all)
 
 # Do not attempt if containers do not exist

@@ -20,6 +20,8 @@ EOF
 [[ $* =~ -f || $* =~ --force ]] && force=true || force=false
 [[ $* =~ --no-title ]] && display_title=false || display_title=true
 
+requires curl docker
+
 # Positional parameter #1: Environment
 [[ $1 != -* && -n $1 ]] && mname="$1"
 

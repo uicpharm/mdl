@@ -16,6 +16,8 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
+requires realpath
+
 # Right now, all configs can use the same `compose.yml` file, but if that changes,
 # this script will inform scripts which file to use based on Moodle version.
 realpath "$MDL_COMPOSE_DIR/compose.yml"

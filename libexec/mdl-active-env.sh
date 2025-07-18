@@ -18,6 +18,8 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
+requires docker
+
 while read -r dir; do
    mname=$(basename "$dir")
    if docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep -q moodle; then

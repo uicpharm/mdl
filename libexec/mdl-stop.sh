@@ -17,6 +17,8 @@ EOF
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 [[ $* =~ -q || $* =~ --quiet ]] && quiet=true || quiet=false
 
+requires docker docker-compose
+
 mnames=$("$scr_dir/mdl-select-env.sh" "${1:-$("$scr_dir/mdl-active-env.sh")}")
 [[ $(docker --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false
 

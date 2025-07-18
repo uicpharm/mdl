@@ -50,6 +50,8 @@ labels="${labels%" "}"
 [[ $* =~ -e || $* =~ --env ]] && env=true || env=false
 [[ $* =~ -s || $* =~ --sys ]] && sys=true || sys=false
 
+requires docker
+
 if $sys; then
    yorn "Remove backups at $ul$MDL_BACKUP_DIR$rmul?" y && rm -Rfv "$MDL_BACKUP_DIR"
    yorn "Remove Moodle environments at $ul$MDL_ENVS_DIR$rmul?" y && rm -Rfv "$MDL_ENVS_DIR"

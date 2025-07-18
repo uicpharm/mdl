@@ -39,6 +39,8 @@ EOF
 # they ONLY passed "-h" or "--help", and no other parameters.
 [[ $* == -h || $* == --help ]] && display_help && exit
 
+requires docker
+
 paramI=''
 for arg in "$@"; do
    if [[ $arg == -i || $arg == --interactive ]]; then

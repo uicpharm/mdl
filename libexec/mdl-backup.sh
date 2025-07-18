@@ -156,14 +156,9 @@ if [[ ! "$valid_compress" =~ $compress_arg ]]; then
 fi
 
 # Check necessary utilities
-cmds=tar
-[[ $compress_arg != none ]] && cmds="$cmds $compress_arg"
-for cmd in $cmds; do
-   if [[ -z $(which "$cmd" 2>/dev/null) ]]; then
-      echo "${red}${bold}This command requires $ul$cmd$rmul to work.$norm" >&2
-      exit 1
-   fi
-done
+cmds=(tar docker)
+[[ $compress_arg != none ]] && cmds+=("$compress_arg")
+requires "${cmds[@]}"
 
 for mname in $mnames; do
 

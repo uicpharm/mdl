@@ -17,6 +17,8 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
+requires docker
+
 mname=$("$scr_dir/mdl-select-env.sh" "$1" --no-all)
 branchver="0"
 src_vol_name=${src_vol_name:-$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)}
