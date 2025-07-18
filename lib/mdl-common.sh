@@ -58,6 +58,24 @@ function mdl_title() {
    echo "$norm"
 }
 
+# Throws an error if the provided command(s) are not available on the system
+function requires() {
+   local ok=true
+   for cmd in "$@"; do
+      if [[ -z $(which "$cmd" 2>/dev/null) ]]; then
+         echo "${red}${bold}This command requires $ul$cmd$rmul to work.$norm" >&2
+         ok=false
+      elif [[ $cmd =~ docker || $cmd =~ podman ]]; then
+         root_cmd=${cmd%-*}
+         if ! "$root_cmd" info &>/dev/null; then
+            echo "${red}${bold}You need to start $root_cmd before you can continue.$norm" >&2
+            exit 1
+         fi
+      fi
+   done
+   $ok || exit 1
+}
+
 # Returns the name of the script, trying to factor in whether you called the script
 # directly or used the `mdl` script.
 function script_name() {
