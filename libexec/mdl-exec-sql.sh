@@ -34,8 +34,7 @@ for mname in $mnames; do
    sql_is_file=false
    [ -f "$sql" ] && sql_is_file=true
 
-   # shellcheck source=../environments/sample.env
-   . "$scr_dir/mdl-export-env.sh" "$mname"
+   export_env_and_update_config "$mname"
 
    # Get an existing moodle task on this node
    container="$(docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep mariadb | head -1)"
@@ -50,5 +49,8 @@ for mname in $mnames; do
       echo "Could not find a container running MariaDB for Moodle for $mname!"
       exit 1
    fi
+
+   # Unset environment variables
+   unset_env "$mname"
 
 done

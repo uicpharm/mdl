@@ -64,9 +64,8 @@ if [[ -n $mname ]]; then
    if [[ ! -d "$MDL_ENVS_DIR/$mname" ]] || $force; then
       echo "Creating environment: $ul$mname$rmul"
       mkdir -p "$MDL_ENVS_DIR/$mname"
-      "$scr_dir/mdl-touch-env.sh" "$mname"
+      export_env "$mname"
       echo "Environment created at: $ul$MDL_ENVS_DIR/$mname$rmul"
-      . "$scr_dir/mdl-export-env.sh" "$mname"
       echo
       echo "${ul}Database Configuration$rmul"
       DB_NAME=$(ask "Database name" "$DB_NAME")

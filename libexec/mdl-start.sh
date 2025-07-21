@@ -45,7 +45,7 @@ for mname in $mnames; do
    docker_compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
    $quiet || echo "Starting $mname..."
    . "$scr_dir/mdl-calc-images.sh" "$mname"
-   . "$scr_dir/mdl-export-env.sh" "$mname"
+   export_env_and_update_config "$mname"
 
    # Explicitly add the pod so it has its lifecycle container and the exact name we want
    $IS_PODMAN && ! docker pod exists "$mname" && podman pod create --name "$mname"
@@ -70,5 +70,8 @@ for mname in $mnames; do
    if $follow; then
       "$scr_dir/mdl-logs.sh" "$mname" -f
    fi
+
+   # Unset environment variables
+   unset_env "$mname"
 
 done

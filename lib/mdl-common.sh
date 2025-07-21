@@ -161,3 +161,100 @@ function yorn() {
       fi
    done
 }
+
+# Used to clear all known vars to proactively avoid data leaks.
+# Usage: unset_env <ENV>
+function unset_env() {
+   local -r env_dir="$MDL_ENVS_DIR/$1"
+   local -r -a variables=(
+      ROOT_PASSWORD DB_NAME DB_USERNAME DB_PASSWORD MOODLE_HOST WWWROOT
+      SOURCE_HOST SOURCE_DATA_PATH SOURCE_SRC_PATH SOURCE_DB_NAME SOURCE_DB_USERNAME SOURCE_DB_PASSWORD
+      BOX_CLIENT_ID BOX_CLIENT_SECRET BOX_REDIRECT_URI BOX_FOLDER_ID
+   )
+   for var in "${variables[@]}"; do
+      unset "$var"
+   done
+   # shellcheck disable=SC2046
+   unset $(grep -E '^[A-Z_0-9]+=' "$env_dir/.env" | cut -d= -f1 | xargs)
+}
+
+# Exports all .env variables.
+# Usage: export_env <ENV>
+function export_env() {
+   local -r env_dir="$MDL_ENVS_DIR/$1"
+   # We touch the .env file before we look at it.
+   "$scr_dir/mdl-touch-env.sh" "$1"
+   # shellcheck disable=SC2046
+   export $(grep -E '^[A-Z_0-9]+=' "$env_dir/.env" | xargs)
+   export mname=$1
+}
+
+# Updates config.php with the environment variables.
+# Usage: update_config <ENV>
+function update_config() {
+   local -r env_dir="$MDL_ENVS_DIR/$1"
+   local -r env_config_file="$env_dir/src/config.php"
+
+   # Get desired wwwroot value
+   if [ -z "$WWWROOT" ]; then
+      local -r defaultwwwroot="$(grep -o -E "CFG->wwwroot\s*=\s*'(.*)';" "$env_config_file" | cut -d"'" -f2)"
+      local altwwwroot1="http://$HOSTNAME"
+      [ "$defaultwwwroot" = "$altwwwroot1" ] && altwwwroot1=''
+      local altwwwroot2="http://$MOODLE_HOST"
+      [ "$defaultwwwroot" = "$altwwwroot2" ] && altwwwroot2=''
+      echo 'You can avoid this prompt by setting WWWROOT in your .env file.'
+      PS3="Select a desired wwwroot value or type your own: "
+      select WWWROOT in "$defaultwwwroot" $altwwwroot1 $altwwwroot2; do
+         WWWROOT="${WWWROOT:-$REPLY}"
+         break
+      done
+   fi
+
+   local cmd="
+      env_dir=/env
+      env_config_file=/src/config.php
+      source /env/.env
+      WWWROOT=$WWWROOT
+   "
+   cmd="$cmd $(cat <<'EOF'
+      replace_config_value() {
+         local content="$1"
+         [[ -t 0 ]] && shift || content="$(cat)"
+         local key="$1"
+         local val="$2"
+         echo "$content" | sed -E "s|(\\\$CFG->${key}[[:space:]]*=[[:space:]]*'?)[^';]*('?;)|\1${val}\2|g"
+      }
+
+      # Replace values in config
+      if [[ -f "$env_config_file" ]]; then
+         # Standard updates
+         config_content=$(
+            sed -E "/'dbport'/ s/> .*,/> 3306,/" "$env_config_file" |
+            replace_config_value dbtype "${DB_TYPE:-mariadb}" |
+            replace_config_value dbhost "${DB_HOST:-mariadb}" |
+            replace_config_value dbname "$DB_NAME" |
+            replace_config_value dbuser "$DB_USERNAME" |
+            replace_config_value dbpass "$DB_PASSWORD" |
+            replace_config_value wwwroot "$WWWROOT" |
+            replace_config_value dataroot "${DATA_ROOT:-/bitnami/moodledata}"
+         )
+         # Run custom updates if provided
+         custom_script="$env_dir/custom-config.sh"
+         [[ -f "$custom_script" ]] && config_content=$(. "$custom_script" "$config_content")
+         # Write new contents to config file
+         [[ -n "$config_content" ]] && echo "$config_content" > "$env_config_file"
+      fi
+EOF
+   )"
+
+   docker volume inspect "${1}_src" &> /dev/null && \
+   docker run --rm -t --name "${1}_worker_update_config" \
+      -v "$env_dir":/env:Z,ro \
+      -v "${1}_src":/src \
+      "$MDL_SHELL_IMAGE" sh -c "$cmd"
+}
+
+function export_env_and_update_config() {
+   export_env "$@"
+   update_config "$@"
+}

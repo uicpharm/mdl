@@ -126,8 +126,7 @@ function curl_api {
 for mname in $mnames; do
 
    # Get environment values and use them when no local value provided.
-   # shellcheck source=../environments/sample.env
-   . "$scr_dir/mdl-export-env.sh" "$mname"
+   export_env "$mname"
 
    #
    # Validation
@@ -252,5 +251,8 @@ for mname in $mnames; do
       echo "${red}Invalid action: $action.$norm" >&2
       exit 1;
    fi
+
+   # Unset environment variables
+   unset_env "$mname"
 
 done

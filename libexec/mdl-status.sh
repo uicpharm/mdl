@@ -67,8 +67,9 @@ for mname in $mnames; do
       if [ -n "$running" ]; then
          echo
          . "$scr_dir/mdl-calc-images.sh" "$mname"
-         . "$scr_dir/mdl-export-env.sh" "$mname"
+         export_env "$mname"
          docker-compose -f "$docker_compose_path" ps 2>/dev/null
+         unset_env "$mname"
       fi
       echo
    )
