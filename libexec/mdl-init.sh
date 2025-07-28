@@ -10,17 +10,20 @@ Initializes a Moodle environment and, if the system isn't initialized,
 sets up the directories and configuration files for the system.
 
 Options:
--h, --help         Show this help message and exit.
--f, --force        Force initialization even if already initialized.
-    --no-title     Do not display the title banner.
+-h, --help           Show this help message and exit.
+-f, --force          Force initialization even if already initialized.
+    --no-title       Do not display the title banner.
+    --skip-install   Do not install a fresh environment when setting up
+                     the Moodle environment. Just allocate it.
 EOF
 }
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 [[ $* =~ -f || $* =~ --force ]] && force=true || force=false
 [[ $* =~ --no-title ]] && display_title=false || display_title=true
+[[ $* =~ --skip-install ]] && install_moodle=false || install_moodle=true
 
-requires curl docker
+requires curl docker uuidgen
 
 # Positional parameter #1: Environment
 [[ $1 != -* && -n $1 ]] && mname="$1"
@@ -165,7 +168,98 @@ if [[ -n $mname ]]; then
             exit 1
          fi
       fi
-      # TODO: Instantiate volumes with a starter Moodle environment/database.
+      # Instantiate environment with a starter Moodle environment/database.
+      if $install_moodle; then
+         # Get versions from version matrix, and ask user which version to install.
+         versions=()
+         versions_content=$(< "$MDL_VERSIONS_FILE")
+         include_line=false
+         while read -r line; do
+            $include_line && versions+=("$line") || include_line=true
+         done <<< "$versions_content"
+         for ver_string in "${versions[@]}"; do
+            IFS=' ' read -ra var_array <<< "$ver_string"
+            branch_array+=("${var_array[0]}")
+            moodle_array+=("$(echo "${var_array[1]}" | cut -d'.' -f1-2)")
+         done
+         PS3="Select the version to install: "
+         select moodle_ver in "${moodle_array[@]}"; do
+            if (( REPLY > 0 && REPLY <= ${#moodle_array[@]} )); then
+               branchver=${branch_array[$REPLY - 1]}
+               break
+            else
+               echo "Invalid selection. Please try again."
+            fi
+         done
+         echo
+         # Start the environment. Bitnami image will automatically bootstrap install. Wait to finish.
+         branchver="$branchver" "$scr_dir/mdl-start.sh" "$mname" -q
+         moodle_svc=$(docker ps --filter "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle)
+         src_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)
+         # Do git install once standard install completes.
+         function git_cmd() {
+            docker run --rm -t --name "$mname-git-$(uuidgen)" -v "$src_vol_name":/git "$MDL_GIT_IMAGE" -c safe.directory=/git "$@"
+         }
+         (
+            # Wait until standard bootstrap install completes.
+            last_check=0
+            until docker logs --since "$last_check" "$moodle_svc" 2>&1 | grep -q 'Moodle setup finished'; do
+               last_check=$(($(date +%s)-1))
+               sleep 5
+            done
+            #
+            # We want to use Moodle's automatically-generated config.php file, but it creates the
+            # configuration for $CFG->wwwroot like this:
+            #
+            # if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') {
+            #   $CFG->wwwroot   = 'https://' . 'moodle_host';
+            # } else {
+            #   $CFG->wwwroot   = 'http://' . 'moodle_host';
+            # }
+            #
+            # We don't want that. So we use awk to find the the block, and we replace it with just
+            # a single line for `$CFG->wwwroot = 'moodle_host';` which will be easy to handle.
+            #
+            # shellcheck disable=SC2016
+            awk_cmd='
+               BEGIN { skip = 0 }
+               /if *\(isset\(\$_SERVER\[.HTTPS.\]\) *&& *\$_SERVER\[.HTTPS.\] *== *'\''on'\''\) *{/ {
+                  skip = 1; next
+               }
+               skip && /^\s*}\s*$/ {
+                  skip = 0
+                  print "$CFG->wwwroot   = '\'$WWWROOT\'';"
+                  next
+               }
+               !skip { print }
+            '
+            config_file=/bitnami/moodle/config.php
+            revised_config_file=$(mktemp)
+            docker exec -it "$moodle_svc" awk "$awk_cmd" "$config_file" > "$revised_config_file"
+            docker cp "$revised_config_file" "$moodle_svc":"$config_file"
+            # Bitnami image unfortunately does not install the git repo. So, we add git after the fact.
+            # This works fine since the Moodle repo branch will always be even with or slightly ahead of the Bitnami image.
+            targetbranch="MOODLE_${branchver}_STABLE"
+            git_cmd init -b main
+            git_cmd remote add origin https://github.com/moodle/moodle.git
+            git_cmd fetch -np origin "$targetbranch"
+            git_cmd checkout -f "$targetbranch"
+         ) > /dev/null &
+         git_pid=$!
+         yorn 'Do you want to optimize the git repository? It will save space but take more time.' 'n' && do_gc=true || do_gc=false
+         echo -n 'Installing... '
+         wait "$git_pid"
+         echo 'Finished.'
+         $do_gc && echo 'Optimizing git repository...' && git_cmd gc --prune=now --aggressive
+         # The checkout will probably result in a slightly higher version, so we run an upgrade.
+         echo "Upgrading to latest version of Moodle $moodle_ver.x..."
+         "$scr_dir/mdl-cli.sh" "$mname" upgrade --non-interactive
+         # After upgrades, we need to fix permissions.
+         docker exec -it "${moodle_svc}" bash -c '
+            chown -R daemon:daemon /bitnami/moodle /bitnami/moodledata
+            chmod -R g+rwx /bitnami/moodle /bitnami/moodledata
+         '
+      fi
       echo 🎉 Done!
    else
       echo "Environment $ul$mname$rmul is already initialized!" >&2
