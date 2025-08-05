@@ -2,26 +2,49 @@
 
 . "${0%/*}/../lib/mdl-common.sh"
 
+# Defaults
+compose_file_url=$MDL_BASE_URL/compose/compose.yml
+display_title=true
+force=false
+install_moodle=true
+
+# Help
 display_help() {
    cat <<EOF
-Usage: $(script_name) <ENV>
+Usage: $(script_name) <ENV> [OPTIONS]
 
 Initializes a Moodle environment and, if the system isn't initialized,
 sets up the directories and configuration files for the system.
 
 Options:
--h, --help           Show this help message and exit.
--f, --force          Force initialization even if already initialized.
-    --no-title       Do not display the title banner.
-    --skip-install   Do not install a fresh environment when setting up
-                     the Moodle environment. Just allocate it.
+-h, --help             Show this help message and exit.
+-c, --compose-file-url URL to download compose file for this system.
+-f, --force            Force initialization even if already initialized.
+    --no-title         Do not display the title banner.
+    --skip-install     Do not install a fresh environment when setting
+                       up the Moodle environment. Just allocate it.
 EOF
 }
 
-[[ $* =~ -h || $* =~ --help ]] && display_help && exit
-[[ $* =~ -f || $* =~ --force ]] && force=true || force=false
-[[ $* =~ --no-title ]] && display_title=false || display_title=true
-[[ $* =~ --skip-install ]] && install_moodle=false || install_moodle=true
+# Positional parameter #1: Environment
+[[ $1 != -* && -n $1 ]] && mname="$1" && shift
+
+# Collect optional arguments.
+# shellcheck disable=SC2214
+# spellchecker: disable-next-line
+while getopts hc:f-: OPT; do
+   support_long_options
+   case "$OPT" in
+      h | help) display_help; exit ;;
+      c | compose-file-url) compose_file_url=$OPTARG ;;
+      f | force) force=true ;;
+      no-title) display_title=false ;;
+      skip-install) install_moodle=false ;;
+      \?) echo "${red}Invalid option: -$OPT$norm" >&2 ;;
+      *) echo "${red}Some of these options are invalid:$norm $*" >&2; exit 2 ;;
+   esac
+done
+shift $((OPTIND - 1))
 
 requires curl docker uuidgen
 
@@ -53,9 +76,28 @@ if $should_init_system; then
    install -d "$MDL_ENVS_DIR"
    install -d "$MDL_BACKUP_DIR"
    install -d "$MDL_COMPOSE_DIR"
-   echo 'Downloading compose file(s)...'
-   if ! curl -fsL "$MDL_BASE_URL/compose/compose.yml" -o "$MDL_COMPOSE_DIR/compose.yml"; then
-      echo "Failed to download compose file. Please check your internet connection or the URL." >&2
+   if [[ -L $(which mdl) ]]; then
+      # If in dev mode, link to the project compose file.
+      compose_file=$(realpath "$scr_dir/../compose/compose.yml")
+      echo 'Since mdl is in developer mode, installing symlink to compose file at:'
+      echo "$ul$compose_file$rmul"
+      ln -s -F "$compose_file" "$MDL_COMPOSE_DIR/compose.yml"
+   elif [[ -n $compose_file_url ]]; then
+      # Download the provided compose file URL.
+      echo 'Downloading compose file from:'
+      echo "$ul$compose_file_url$rmul"
+      if ! curl -fsL "$compose_file_url" -o "$MDL_COMPOSE_DIR/compose.yml"; then
+         echo "Failed to download compose file. Please check your internet connection or the URL." >&2
+         exit 1
+      fi
+   elif [[ -e $MDL_COMPOSE_DIR/compose.yml ]]; then
+      # A blank compose file URL was provided, but it's ok, because a file is present.
+      echo 'Skipping compose file download. That is ok because one is already installed.'
+   else
+      # A blank compose file URL was provided, and they don't have one. This will break
+      # things, so we are forced to abort.
+      echo 'Skipped compose file download because no URL was provided.' >&2
+      echo 'This step is critical, so we need to abort.' >&2
       exit 1
    fi
    "$scr_dir/mdl-calc-images.sh"
