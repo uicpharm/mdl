@@ -26,4 +26,4 @@ containers="$(docker ps -q -f name="$mname" 2> /dev/null)"
 docker_compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
 . "$scr_dir/mdl-calc-images.sh" "$mname"
 export_env_and_update_config "$mname"
-docker-compose -f "$docker_compose_path" logs "${@:2}"
+docker-compose -p "$mname" -f "$docker_compose_path" logs "${@:2}"

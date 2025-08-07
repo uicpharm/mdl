@@ -49,10 +49,10 @@ for mname in $mnames; do
 
    # Explicitly add the pod so it has its lifecycle container and the exact name we want
    $IS_PODMAN && ! docker pod exists "$mname" && podman pod create --name "$mname"
-   $IS_PODMAN && podman_args=('--podman-run-args' "--pod $mname")
+   $IS_PODMAN && podman_args=(--in-pod "$mname")
    args=('-d')
    $start || args+=('--no-start')
-   docker-compose "${podman_args[@]}" -f "$docker_compose_path" up "${args[@]}"
+   docker-compose "${podman_args[@]}" -p "$mname" -f "$docker_compose_path" up "${args[@]}"
 
    if $wait; then
       # Do not exit until environment is fully running

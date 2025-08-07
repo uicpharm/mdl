@@ -36,9 +36,9 @@ for mname in $mnames; do
    $quiet || echo "Stopping $mname..."
    . "$scr_dir/mdl-calc-images.sh" "$mname"
    export_env "$mname"
-   docker-compose -f "$docker_compose_path" down
+   $IS_PODMAN && podman_args=(--in-pod "$mname")
+   docker-compose "${podman_args[@]}" -p "$mname" -f "$docker_compose_path" down
    # Since we explicitly add the pod via script, we must explicitly remove it
-   # shellcheck disable=SC2015
    $IS_PODMAN && docker pod exists "$mname" && podman pod rm -f "$mname"
 
    # Unset environment variables
