@@ -18,11 +18,11 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-requires docker
+requires "${MDL_CONTAINER_TOOL[0]}"
 
 while read -r dir; do
    mname=$(basename "$dir")
-   if docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep -q moodle; then
+   if container_tool ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep -q moodle; then
       (( runcnt++ )) || true
       running="$mname"
    fi

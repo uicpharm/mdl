@@ -20,21 +20,21 @@ EOF
 [[ $* =~ -b || $* =~ --box ]] && mdl_ls_params=(-b) || mdl_ls_params=()
 [[ $* =~ -q || $* =~ --quiet ]] && quiet=true || quiet=false
 
-requires docker docker-compose grep
+requires "${MDL_CONTAINER_TOOL[0]}" "${MDL_COMPOSE_TOOL[0]}" grep
 
 mnames=$("$scr_dir/mdl-select-env.sh" "${1:-all}")
 success=true
 
 for mname in $mnames; do
 
-   running="$(docker ps -q -f name="$mname")"
+   running="$(container_tool ps -q -f name="$mname")"
    env_path="$MDL_ENVS_DIR/$mname/.env"
    custom_path="$MDL_ENVS_DIR/$mname/custom-config.sh"
-   vols=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname")
+   vols=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname")
    db_vol_name=$(grep db <<< "$vols")
    data_vol_name=$(grep data <<< "$vols")
    src_vol_name=$(grep src <<< "$vols")
-   docker_compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
+   compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
 
    $quiet || echo "${ul}Environment: $bold$mname$norm"
    # Status
@@ -68,7 +68,7 @@ for mname in $mnames; do
          echo
          . "$scr_dir/mdl-calc-images.sh" "$mname"
          export_env "$mname"
-         docker-compose -p "$mname" -f "$docker_compose_path" ps 2>/dev/null
+         compose_tool -p "$mname" -f "$compose_path" ps 2>/dev/null
          unset_env "$mname"
       fi
       echo

@@ -50,7 +50,7 @@ labels="${labels%" "}"
 [[ $* =~ -e || $* =~ --env ]] && env=true || env=false
 [[ $* =~ -s || $* =~ --sys ]] && sys=true || sys=false
 
-requires docker
+requires "${MDL_CONTAINER_TOOL[0]}"
 
 if $sys; then
    yorn "Remove backups at $ul$MDL_BACKUP_DIR$rmul?" y && rm -Rfv "$MDL_BACKUP_DIR"
@@ -76,13 +76,13 @@ for mname in $mnames; do
    else
       # Remove a moodle environment
       echo "Removing data for $mname environment..."
-      vols=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname")
+      vols=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname")
       db_vol_name=$(grep db <<< "$vols")
       data_vol_name=$(grep data <<< "$vols")
       src_vol_name=$(grep src <<< "$vols")
-      [ -n "$db_vol_name" ] && echo "Clearing the database volume... $(docker volume rm "$db_vol_name")"
-      [ -n "$data_vol_name" ] && echo "Clearing the data volume... $(docker volume rm "$data_vol_name")"
-      [ -n "$src_vol_name" ] && echo "Clearing the source volume... $(docker volume rm "$src_vol_name")"
+      [ -n "$db_vol_name" ] && echo "Clearing the database volume... $(container_tool volume rm "$db_vol_name")"
+      [ -n "$data_vol_name" ] && echo "Clearing the data volume... $(container_tool volume rm "$data_vol_name")"
+      [ -n "$src_vol_name" ] && echo "Clearing the source volume... $(container_tool volume rm "$src_vol_name")"
       if $env; then
          echo "Removing the entire $mname environment itself..."
          rm -Rf "${MDL_ENVS_DIR:?}/${mname:?}"

@@ -22,14 +22,14 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-requires docker grep cut uuidgen
+requires "${MDL_CONTAINER_TOOL[0]}" grep cut uuidgen
 
 mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 targetbranch="$2"
 
 for mname in $mnames; do
 
-   src_vol_name=${src_vol_name:-$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)}
+   src_vol_name=${src_vol_name:-$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)}
    if [ -z "$src_vol_name" ]; then
       echo "Source code volume does not exist for $mname. Can't upgrade."
       exit 1
@@ -40,7 +40,7 @@ for mname in $mnames; do
 
    echo "Upgrading $mname..."
    function git_cmd() {
-      docker run --rm --name "$mname-git-$(uuidgen)" -v "$src_vol_name":/git "$MDL_GIT_IMAGE" -c safe.directory=/git "$@"
+      container_tool run --rm --name "$mname-git-$(uuidgen)" -v "$src_vol_name":/git "$MDL_GIT_IMAGE" -c safe.directory=/git "$@"
    }
 
    # Pull latest repo data
@@ -83,7 +83,7 @@ for mname in $mnames; do
    git_cmd stash pop
 
    # Fix permissions
-   docker run --rm --name "${mname}_worker_fix_perms" \
+   container_tool run --rm --name "${mname}_worker_fix_perms" \
       -v "$src_vol_name":/src "$MDL_SHELL_IMAGE" sh -c "\
          chown -R daemon:daemon /src
          chmod -R g+rwx /src

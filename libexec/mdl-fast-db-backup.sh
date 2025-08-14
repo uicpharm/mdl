@@ -21,7 +21,7 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-requires docker
+requires "${MDL_CONTAINER_TOOL[0]}"
 
 mnames=$("$scr_dir"/mdl-select-env.sh "$1")
 
@@ -35,7 +35,7 @@ for mname in $mnames; do
    echo "Fast backup of the $mname database."
 
    # Abort if the volume can't be found
-   db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
+   db_vol_name=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
    if [ -z "$db_vol_name" ]; then
       echo "Database volume for $mname could not be found."
       exit 1
@@ -54,7 +54,7 @@ for mname in $mnames; do
    "$scr_dir/mdl-stop.sh" "$mname"
 
    db_target="${mname}_${label}_dbfiles.tar"
-   docker run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup "$MDL_SHELL_IMAGE" tar cf "/backup/$db_target" -C /db .
+   container_tool run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup "$MDL_SHELL_IMAGE" tar cf "/backup/$db_target" -C /db .
 
    echo "Fast backup of $mname is done!"
 

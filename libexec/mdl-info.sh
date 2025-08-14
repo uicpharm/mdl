@@ -19,7 +19,7 @@ EOF
 [[ $* =~ -q || $* =~ --quiet ]] && quiet=true || quiet=false
 [[ $* =~ --no-title ]] && display_title=false || display_title=true
 
-requires docker realpath
+requires "${MDL_CONTAINER_TOOL[0]}" realpath
 
 ok=true
 config_status="✅" && [[ ! -f $MDL_CONFIG_FILE ]] && ok=false && config_status="❌"

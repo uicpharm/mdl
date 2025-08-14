@@ -17,13 +17,13 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-requires docker
+requires "${MDL_CONTAINER_TOOL[0]}"
 
 mname=$("$scr_dir/mdl-select-env.sh" "$1" --no-all)
 branchver="0"
-src_vol_name=${src_vol_name:-$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)}
+src_vol_name=${src_vol_name:-$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)}
 if [ -n "$src_vol_name" ]; then
-   branchver=$(docker run --rm -t --name "${mname}_worker_git" -v "$src_vol_name":/src -w /src "$MDL_GIT_IMAGE" \
+   branchver=$(container_tool run --rm -t --name "${mname}_worker_git" -v "$src_vol_name":/src -w /src "$MDL_GIT_IMAGE" \
       -c safe.directory=/src \
       symbolic-ref --short HEAD | \
       cut -d'_' -f2 \

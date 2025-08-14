@@ -17,29 +17,29 @@ EOF
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 [[ $* =~ -q || $* =~ --quiet ]] && quiet=true || quiet=false
 
-requires docker docker-compose
+requires "${MDL_CONTAINER_TOOL[0]}" "${MDL_COMPOSE_TOOL[0]}"
 
 mnames=$("$scr_dir/mdl-select-env.sh" "${1:-$("$scr_dir/mdl-active-env.sh")}")
-[[ $(docker --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false
+[[ $(container_tool --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false
 
 for mname in $mnames; do
 
    # Do not attempt if containers do not exist
-   containers="$(docker ps -a -q -f name="$mname" 2> /dev/null)"
+   containers="$(container_tool ps -a -q -f name="$mname" 2> /dev/null)"
    if [ -z "$containers" ]; then
       $quiet || echo "The $mname stack is already stopped."
       continue
    fi
 
-   docker_compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
+   compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
 
    $quiet || echo "Stopping $mname..."
    . "$scr_dir/mdl-calc-images.sh" "$mname"
    export_env "$mname"
    $IS_PODMAN && podman_args=(--in-pod "$mname")
-   docker-compose "${podman_args[@]}" -p "$mname" -f "$docker_compose_path" down
+   compose_tool "${podman_args[@]}" -p "$mname" -f "$compose_path" down
    # Since we explicitly add the pod via script, we must explicitly remove it
-   $IS_PODMAN && docker pod exists "$mname" && podman pod rm -f "$mname"
+   $IS_PODMAN && container_tool pod exists "$mname" && container_tool pod rm -f "$mname"
 
    # Unset environment variables
    unset_env "$mname"

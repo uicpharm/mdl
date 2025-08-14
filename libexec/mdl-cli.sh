@@ -39,7 +39,7 @@ EOF
 # they ONLY passed "-h" or "--help", and no other parameters.
 [[ $* == -h || $* == --help ]] && display_help && exit
 
-requires docker
+requires "${MDL_CONTAINER_TOOL[0]}"
 
 paramI=''
 for arg in "$@"; do
@@ -54,18 +54,18 @@ mnames=$("$scr_dir"/mdl-select-env.sh "$1")
 for mname in $mnames; do
 
    # Get the Moodle container for this environment
-   container="$(docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle | head -1)"
+   container="$(container_tool ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle | head -1)"
    [[ -z $container ]] && echo "${red}Could not find a container running Moodle for $ul$mname$rmul!$norm" >&2 && exit 1
 
    cmd="$2"
    # If they did not provide a cmd, list the available commands
    if [[ -z $cmd ]]; then
       echo "${bold}${ul}Available Commands$norm"
-      docker exec -t "$container" find /bitnami/moodle/admin/cli -maxdepth 1 -type f -exec basename {} .php \; | sort | sed 's/^/  - /'
+      container_tool exec -t "$container" find /bitnami/moodle/admin/cli -maxdepth 1 -type f -exec basename {} .php \; | sort | sed 's/^/  - /'
       exit
    fi
 
    # Run the command, passing any additional arguments they passed on to this script
-   docker exec $paramI -t "$container" php "/bitnami/moodle/admin/cli/$cmd.php" "${@:3}"
+   container_tool exec $paramI -t "$container" php "/bitnami/moodle/admin/cli/$cmd.php" "${@:3}"
 
 done

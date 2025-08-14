@@ -15,6 +15,7 @@ host=
 ssh_args=
 app=$app_default
 port=$port_default
+container_tool=${MDL_CONTAINER_TOOL[*]}
 verbose=false
 
 # Help
@@ -26,16 +27,18 @@ Initiates a tunnel to the designated container, so that you can access a port th
 typically exposed. For instance, this is useful for accessing the database service.
 
 If you provide a host, it will initiate a tunnel to the host via SSH that resides in the
-background until you stop the tunnel.
+background until you stop the tunnel. If the remote host uses a different container tool
+than your local system, you can specify it with the $bold--container-tool$norm option.
 
 Valid actions: ${valid_actions// /, }
 
 Options:
--h, --help      Show this help message and exit.
--a, --app       Which app service to connect to ($app_default)
--p, --port      Port to tunnel ($port_default)
--e, --ssh-args  Additional SSH arguments to pass when using ssh.
--v, --verbose   Provide more verbose output.
+-h, --help            Show this help message and exit.
+-a, --app             Which app service to connect to ($app_default)
+-p, --port            Port to tunnel ($port_default)
+-t, --container-tool  Which container tool to use (docker or podman).
+-e, --ssh-args        Additional SSH arguments to pass when using ssh.
+-v, --verbose         Provide more verbose output.
 EOF
 }
 
@@ -64,7 +67,7 @@ if [[ $1 != -* ]] && [[ -n $1 ]]; then
    shift
 fi
 
-requires docker ping grep head
+requires "${MDL_CONTAINER_TOOL[0]}" ping grep head
 
 # Collect optional arguments.
 # shellcheck disable=SC2214
@@ -79,6 +82,7 @@ while getopts hva:p:e:-: OPT; do
       e | ssh-args) ssh_args=$OPTARG ;;
       a | app) app=$OPTARG ;;
       p | port) port=$OPTARG ;;
+      t | container-tool) container_tool=$OPTARG ;;
       v | verbose) verbose=true ;;
       \?) echo "${red}Invalid option: -$OPT$norm" >&2 ;;
       *) echo "${red}Some of these options are invalid:$norm $*" >&2; exit 2 ;;
@@ -127,15 +131,15 @@ for mname in $mnames; do
    #
    ssh_cmd=${host:+"ssh $ssh_args $host sudo"}
    if [[ $action == start ]]; then
-      container=$(eval "$ssh_cmd docker ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep $app | head -1")
+      container=$(eval "$ssh_cmd $container_tool ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep $app | head -1")
       [[ -z $container ]] && echo "${red}No $mname $app container found.$norm" >&2 && exit 1
       name="$container-tunnel-$port"
-      cmd="docker run --rm -d --name=$name --network=${mname}_backend -p $port:$port $MDL_SOCAT_IMAGE TCP-LISTEN:$port,fork TCP:$container:$port"
+      cmd="$container_tool run --rm -d --name=$name --network=${mname}_backend -p $port:$port $MDL_SOCAT_IMAGE TCP-LISTEN:$port,fork TCP:$container:$port"
       ssh_post_cmd=${host:+"ssh -f -N -L $port:localhost:$port $ssh_args $host"}
    elif [[ $action == stop ]]; then
-      container=$(eval "$ssh_cmd docker ps --format '{{.Names}}' | grep $mname | grep $app | grep tunnel | grep $port | head -1")
+      container=$(eval "$ssh_cmd $container_tool ps --format '{{.Names}}' | grep $mname | grep $app | grep tunnel | grep $port | head -1")
       [[ -z $container ]] && echo "${red}Could not find $mname $app tunnel to stop.$norm" >&2 && exit 1
-      cmd="docker stop $container"
+      cmd="$container_tool stop $container"
       ssh_post_cmd=${host:+"ps ax|grep 'ssh -f -N -L'|grep $port:localhost:$port|grep $host|awk '{print \$1}'|xargs kill"}
    fi
    if [[ -n $cmd ]] && out=$(eval "$ssh_cmd $cmd"); then

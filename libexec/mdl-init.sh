@@ -46,7 +46,7 @@ while getopts hc:f-: OPT; do
 done
 shift $((OPTIND - 1))
 
-requires curl docker uuidgen
+requires "${MDL_CONTAINER_TOOL[0]}" curl uuidgen
 
 # Positional parameter #1: Environment
 [[ $1 != -* && -n $1 ]] && mname="$1"
@@ -60,6 +60,8 @@ if $should_init_system; then
    echo "Let's get started! Please answer these configuration questions. You can change"
    echo "them later by editing the configuration file saved at:"
    echo "$ul$MDL_CONFIG_FILE$rmul"
+   # TODO: Calculate whether docker/podman exists.
+   # TODO: Offer to install docker/podman if neither exists.
    MDL_ENVS_DIR=$(ask "Where do you want to store environments?" "$MDL_ENVS_DIR")
    MDL_BACKUP_DIR=$(ask "Where do you want to store backups?" "$MDL_BACKUP_DIR")
    MDL_COMPOSE_DIR=$(ask "Where do you want to store Docker Compose files?" "$MDL_COMPOSE_DIR")
@@ -236,16 +238,16 @@ if [[ -n $mname ]]; then
          echo
          # Start the environment. Bitnami image will automatically bootstrap install. Wait to finish.
          branchver="$branchver" "$scr_dir/mdl-start.sh" "$mname" -q
-         moodle_svc=$(docker ps --filter "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle)
-         src_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)
+         moodle_svc=$(container_tool ps --filter "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle)
+         src_vol_name=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)
          # Do git install once standard install completes.
          function git_cmd() {
-            docker run --rm -t --name "$mname-git-$(uuidgen)" -v "$src_vol_name":/git "$MDL_GIT_IMAGE" -c safe.directory=/git "$@"
+            container_tool run --rm -t --name "$mname-git-$(uuidgen)" -v "$src_vol_name":/git "$MDL_GIT_IMAGE" -c safe.directory=/git "$@"
          }
          (
             # Wait until standard bootstrap install completes.
             last_check=0
-            until docker logs --since "$last_check" "$moodle_svc" 2>&1 | grep -q 'Moodle setup finished'; do
+            until container_tool logs --since "$last_check" "$moodle_svc" 2>&1 | grep -q 'Moodle setup finished'; do
                last_check=$(($(date +%s)-1))
                sleep 5
             done
@@ -277,8 +279,8 @@ if [[ -n $mname ]]; then
             '
             config_file=/bitnami/moodle/config.php
             revised_config_file=$(mktemp)
-            docker exec -it "$moodle_svc" awk "$awk_cmd" "$config_file" > "$revised_config_file"
-            docker cp "$revised_config_file" "$moodle_svc":"$config_file"
+            container_tool exec -it "$moodle_svc" awk "$awk_cmd" "$config_file" > "$revised_config_file"
+            container_tool cp "$revised_config_file" "$moodle_svc":"$config_file"
             # Bitnami image unfortunately does not install the git repo. So, we add git after the fact.
             # This works fine since the Moodle repo branch will always be even with or slightly ahead of the Bitnami image.
             targetbranch="MOODLE_${branchver}_STABLE"
@@ -297,7 +299,7 @@ if [[ -n $mname ]]; then
          echo "Upgrading to latest version of Moodle $moodle_ver.x..."
          "$scr_dir/mdl-cli.sh" "$mname" upgrade --non-interactive
          # After upgrades, we need to fix permissions.
-         docker exec -it "${moodle_svc}" bash -c '
+         container_tool exec -it "${moodle_svc}" bash -c '
             chown -R daemon:daemon /bitnami/moodle /bitnami/moodledata
             chmod -R g+rwx /bitnami/moodle /bitnami/moodledata
          '
