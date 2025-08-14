@@ -20,6 +20,8 @@ default_envs_dir="$mdl_root/environments"
 default_versions_file="$mdl_root/versions.txt"
 default_versions_source_url=$MDL_BASE_URL/versions.txt
 default_versions_source_check_frequency=604800 # 7 days
+default_container_tool=(docker)
+default_compose_tool=(docker compose)
 
 # Paths
 export scr_dir=${scr_dir:-$(realpath "$(dirname "$(readlink -f "$0")")/../libexec")}
@@ -33,6 +35,8 @@ export MDL_ENVS_DIR="${MDL_ENVS_DIR:-$default_envs_dir}"
 export MDL_VERSIONS_FILE="${MDL_VERSIONS_FILE:-$default_versions_file}"
 export MDL_VERSIONS_SOURCE_URL="${MDL_VERSIONS_SOURCE_URL:-$default_versions_source_url}"
 export MDL_VERSIONS_SOURCE_CHECK_FREQUENCY="${MDL_VERSIONS_SOURCE_CHECK_FREQUENCY:-$default_versions_source_check_frequency}"
+[[ ${#MDL_CONTAINER_TOOL} -eq 0 ]] && export MDL_CONTAINER_TOOL=("${default_container_tool[@]}")
+[[ ${#MDL_COMPOSE_TOOL} -eq 0 ]] && export MDL_COMPOSE_TOOL=("${default_compose_tool[@]}")
 
 # Formatting
 export norm=$(tput sgr0)
@@ -41,6 +45,11 @@ export rmul=$(tput rmul)
 export bold=$(tput bold)
 export red=$(tput setaf 1)
 export green=$(tput setaf 2)
+export yellow=$(tput setaf 3)
+
+# Container handling
+function compose_tool() { "${MDL_COMPOSE_TOOL[@]}" "$@"; }
+function container_tool() { "${MDL_CONTAINER_TOOL[@]}" "$@"; }
 
 # Title for the script
 function mdl_title() {
@@ -247,8 +256,8 @@ function update_config() {
 EOF
    )"
 
-   docker volume inspect "${1}_src" &> /dev/null && \
-   docker run --rm -t --name "${1}_worker_update_config" \
+   container_tool volume inspect "${1}_src" &> /dev/null && \
+   container_tool run --rm -t --name "${1}_worker_update_config" \
       -v "$env_dir":/env:Z,ro \
       -v "${1}_src":/src \
       "$MDL_SHELL_IMAGE" sh -c "$cmd"
