@@ -9,6 +9,29 @@ display_title=true
 force=false
 install_moodle=true
 
+# Gets used ports from all environments
+get_used_ports() {
+   local used_ports=()
+   for mname in $("$scr_dir/mdl-select-env.sh" all); do
+      used_ports+=("$("$scr_dir/mdl-info.sh" "$mname" MOODLE_PORT)")
+   done
+   echo "${used_ports[@]}"
+}
+
+# Finds the first available port starting from 8001
+find_available_port() {
+   local port=8000
+   # Collect all used ports
+   local used_ports
+   used_ports=$(get_used_ports)
+   # Keep incrementing until we find an available port
+   while true; do
+      (( port++ ))
+      [[ " $used_ports " != *" $port "* ]] && break
+   done
+   echo "$port"
+}
+
 # Help
 display_help() {
    cat <<EOF
@@ -159,7 +182,21 @@ if [[ -n $mname ]]; then
       DB_PASSWORD=$(ask "Database password" "$DB_PASSWORD")
       echo
       echo "${ul}Moodle Configuration$rmul"
+      [[ $MOODLE_PORT == 8000 ]] && MOODLE_PORT=$(find_available_port)
+      while true; do
+         MOODLE_PORT=$(ask "Port number" "$MOODLE_PORT")
+         if ! [[ $MOODLE_PORT =~ ^[0-9]+$ ]] || [[ $MOODLE_PORT -le 1024 ]] || [[ $MOODLE_PORT -ge 65535 ]]; then
+            echo "${red}Port must be a number between 1024 and 65535.$norm" >&2
+         elif [[ " $(get_used_ports) " == *" $MOODLE_PORT "* ]]; then
+            echo "${red}Port $ul$MOODLE_PORT$rmul is already in use by another environment.$norm" >&2
+         else
+            break
+         fi
+         MOODLE_PORT=$(find_available_port)
+      done
+      [[ $MOODLE_HOST == localhost:8000 ]] && MOODLE_HOST="localhost:$MOODLE_PORT"
       MOODLE_HOST=$(ask "Host name" "$MOODLE_HOST")
+      [[ $WWWROOT == http://localhost:8000 ]] && WWWROOT="http://$MOODLE_HOST"
       WWWROOT=$(ask "Site address" "$WWWROOT")
       echo
       echo "${ul}Remote Source Server Configuration$rmul"
@@ -211,7 +248,7 @@ if [[ -n $mname ]]; then
       env_file="$MDL_ENVS_DIR/$mname/.env"
       # Find any custom variables in the .env file that are not in the default list.
       variables=(
-         ROOT_PASSWORD DB_NAME DB_USERNAME DB_PASSWORD MOODLE_HOST WWWROOT
+         ROOT_PASSWORD DB_NAME DB_USERNAME DB_PASSWORD MOODLE_HOST WWWROOT MOODLE_PORT
          SOURCE_HOST SOURCE_DATA_PATH SOURCE_SRC_PATH SOURCE_DB_NAME SOURCE_DB_USERNAME SOURCE_DB_PASSWORD
          BOX_CLIENT_ID BOX_CLIENT_SECRET BOX_REDIRECT_URI BOX_FOLDER_ID
       )
