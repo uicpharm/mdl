@@ -46,7 +46,7 @@ while getopts hc:f-: OPT; do
 done
 shift $((OPTIND - 1))
 
-requires "${MDL_CONTAINER_TOOL[0]}" curl uuidgen
+requires curl uuidgen
 
 # Positional parameter #1: Environment
 [[ $1 != -* && -n $1 ]] && mname="$1"
@@ -60,8 +60,43 @@ if $should_init_system; then
    echo "Let's get started! Please answer these configuration questions. You can change"
    echo "them later by editing the configuration file saved at:"
    echo "$ul$MDL_CONFIG_FILE$rmul"
-   # TODO: Calculate whether docker/podman exists.
-   # TODO: Offer to install docker/podman if neither exists.
+   echo
+   # Detect existence of Podman or Docker
+   docker_version=$(docker --version 2> /dev/null)
+   podman_version=$(podman --version 2> /dev/null)
+   podman_compose_version=$(podman-compose --version 2> /dev/null)
+   [[ $docker_version =~ Docker ]] && has_docker=true || has_docker=false
+   [[ $podman_version =~ podman ]] && has_podman=true || has_podman=false
+   [[ -n $podman_compose_version ]] && has_podman_compose=true || has_podman_compose=false
+   $has_docker && echo -e "Detected $ul$docker_version$rmul on your system.\n"
+   $has_podman && echo -e "Detected $ul$podman_version$rmul on your system.\n"
+   # Which container tool is installed?
+   if ! $has_docker && ! $has_podman; then
+      echo "${bold}${red}You don't seem to have Docker or Podman installed.$norm Aborting setup for now."
+      echo "Once you've installed Docker or Podman, you can resume setup with ${bold}${ul}mdl init$norm."
+      exit 1
+   elif $has_docker && $has_podman; then
+      PS3="Which tool do you want to use with mdl?"
+      select tool_choice in Docker Podman; do break; done
+   else
+      $has_docker && tool_choice=Docker
+      $has_podman && tool_choice=Podman
+      if ! yorn "Do you want to use $tool_choice with mdl?" y; then
+         unset tool_choice
+         echo "Aborting for now. First install the tool you plan to use with mdl."
+         echo "When you are ready, you can resume setup with ${bold}${ul}mdl init$norm."
+         exit 1
+      fi
+   fi
+   [[ $tool_choice == Docker ]] && MDL_CONTAINER_TOOL=(docker) && MDL_COMPOSE_TOOL=(docker compose)
+   [[ $tool_choice == Podman ]] && MDL_CONTAINER_TOOL=(podman) && MDL_COMPOSE_TOOL=(podman-compose)
+   # Handle podman installed but no podman-compose
+   if [[ $tool_choice == Podman ]] && ! $has_podman_compose; then
+      echo "${bold}${red}Oops, you have Podman installed, but you still need ${ul}podman-compose$rmul.$norm"
+      echo "Once you've installed podman-compose, you can resume setup with ${bold}${ul}mdl init$norm."
+      exit 1
+   fi
+   # Configuration questions
    MDL_ENVS_DIR=$(ask "Where do you want to store environments?" "$MDL_ENVS_DIR")
    MDL_BACKUP_DIR=$(ask "Where do you want to store backups?" "$MDL_BACKUP_DIR")
    MDL_COMPOSE_DIR=$(ask "Where do you want to store Docker Compose files?" "$MDL_COMPOSE_DIR")
@@ -74,6 +109,8 @@ if $should_init_system; then
    for x in MDL_ENVS_DIR MDL_BACKUP_DIR MDL_COMPOSE_DIR MDL_VERSIONS_FILE MDL_VERSIONS_SOURCE_URL MDL_VERSIONS_SOURCE_CHECK_FREQUENCY; do
       echo "$x='${!x}'" >> "$MDL_CONFIG_FILE"
    done
+   echo "MDL_CONTAINER_TOOL=(${MDL_CONTAINER_TOOL[*]})" >> "$MDL_CONFIG_FILE"
+   echo "MDL_COMPOSE_TOOL=(${MDL_COMPOSE_TOOL[*]})" >> "$MDL_CONFIG_FILE"
    echo "Configuration saved to: $ul$MDL_CONFIG_FILE$rmul"
    install -d "$MDL_ENVS_DIR"
    install -d "$MDL_BACKUP_DIR"
