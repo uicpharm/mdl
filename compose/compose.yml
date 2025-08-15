@@ -8,15 +8,8 @@ services:
          - backend
       environment:
          - MARIADB_ROOT_PASSWORD=${ROOT_PASSWORD:-password}
-         - MARIADB_USER=${DB_USERNAME:-moodleuser}
-         - MARIADB_PASSWORD=${DB_PASSWORD:-password}
-         - MARIADB_DATABASE=${DB_NAME:-moodle}
-         - MARIADB_CHARACTER_SET=utf8mb4
-         - MARIADB_COLLATE=utf8mb4_unicode_ci
-         - MARIADB_SKIP_TEST_DB=yes
       volumes:
          - /etc/localtime:/etc/localtime:ro
-         - $MDL_ENVS_DIR/$mname/backup.sql:/docker-entrypoint-initdb.d/restore-the-backup.sql:ro
          - db:/bitnami/mariadb
    moodle:
       image: $MOODLE_IMAGE
@@ -38,9 +31,11 @@ services:
          - MOODLE_HOST=${MOODLE_HOST:-localhost}
       volumes:
          - /etc/localtime:/etc/localtime:ro
-         - $MDL_ENVS_DIR/$mname/src:/bitnami/moodle
-         - $MDL_ENVS_DIR/$mname/data:/bitnami/moodledata
+         - src:/bitnami/moodle
+         - data:/bitnami/moodledata
 networks:
    backend:
 volumes:
    db:
+   src:
+   data:

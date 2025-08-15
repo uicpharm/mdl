@@ -1,26 +1,38 @@
 #!/bin/bash
 
-sub_cmd="${1//\.sh/}"
-scr_dir=$(realpath "$(dirname "$(readlink -f "$0")")/..")
-sub_cmd_path="$scr_dir/$sub_cmd.sh"
+ver=1.0.0
+sub_cmd="${1/\.sh/}"
+scr_dir=$(realpath "$(dirname "$(readlink -f "$0")")/../libexec")
+sub_cmd_path="$scr_dir/mdl-$sub_cmd.sh"
 
 if [ -f "$sub_cmd_path" ]; then
    "$sub_cmd_path" "${@:2}"
+elif [[ $* =~ -v || $* =~ --version ]]; then
+   echo -n "mdl version $ver, build "
+   find "$(readlink -f "$0")" "$scr_dir"/mdl-*.sh "$scr_dir"/../lib/mdl-*.sh -type f 2>/dev/null | \
+   sort | xargs cat | sha256sum | cut -c1-8
 else
+   . "$scr_dir/../lib/mdl-common.sh"
+   mdl_title
    [ -n "$sub_cmd" ] && echo -e "The subcommand $sub_cmd doesn't exist.\n"
 
    # Find all aliases
    declare -a alias_names=()
    declare -a alias_links=()
    while IFS= read -r -d '' alias; do
-      alias_names+=("$(basename -s '.sh' "$alias")")
-      alias_links+=("$(basename -s '.sh' "$(readlink "$alias")")")
-   done < <(find "$scr_dir" -maxdepth 1 -type l -name '*.sh' -print0)
+      alias_name=$(basename -s '.sh' "$alias")
+      alias_name=${alias_name/mdl-/}
+      alias_names+=("$alias_name")
+      alias_name=$(basename -s '.sh' "$(readlink "$alias")")
+      alias_name=${alias_name/mdl-/}
+      alias_links+=("$alias_name")
+   done < <(find "$scr_dir" -maxdepth 1 -type l -name 'mdl-*.sh' -print0)
 
    # Loop thru all commands, listing matching aliases if they exist
    echo 'Available subcommands:'
    while IFS= read -r -d '' f; do
       cmd=$(basename -s '.sh' "$f")
+      cmd=${cmd/mdl-/}
       out="  - $cmd"
       aliases=()
       for i in "${!alias_names[@]}"; do
@@ -31,5 +43,5 @@ else
          out+=" (or: ${aliases_string// /, })"
       fi
       echo "$out"
-   done < <(find "$scr_dir" -maxdepth 1 -type f -name '*.sh' -print0 | sort -z)
+   done < <(find "$scr_dir" -maxdepth 1 -type f -name 'mdl-*.sh' -print0 | sort -z)
 fi

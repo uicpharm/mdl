@@ -1,14 +1,12 @@
 {
-   "name": "moodle",
+   "name": "mdl",
    "version": "1.0.0",
    "description": "Tooling for our implementation of Moodle.",
    "type": "module",
    "scripts": {
-      "build": "npm run build:plugin && npm run build:docs",
-      "build:plugin": "gulp build",
+      "build": "npm run build:docs",
       "build:docs": "vitepress build docs",
-      "dev": "concurrently 'npm run dev:plugin' 'npm run dev:docs'",
-      "dev:plugin": "gulp",
+      "dev": "npm run dev:docs",
       "dev:docs": "vitepress dev docs",
       "test": "npm run check-node",
       "standards": "npm run shellcheck && npm run eslint && npm run yamllint && npm run markdownlint && npm run cspell && npm run commitlint",
@@ -16,9 +14,9 @@
       "commitlint": "commitlint --from 35691b683b",
       "cspell": "cspell . --show-suggestions --no-progress",
       "eslint": "eslint .",
-      "shellcheck": "shellcheck *.sh bin/*",
+      "shellcheck": "(cd lib && shellcheck *.sh) && (cd libexec && shellcheck *.sh) && (cd bin && shellcheck *) && (cd installers && shellcheck *)",
       "markdownlint": "markdownlint **/*.md",
-      "yamllint": "yamllint **/*.yml .*/**/*.yml --ignore={node_modules,environments}"
+      "yamllint": "yamllint **/*.yml .*/**/*.yml --ignore=node_modules"
    },
    "repository": {
       "type": "git",
@@ -31,13 +29,9 @@
    },
    "homepage": "https://github.com/uicpharm/moodle#readme",
    "devDependencies": {
-      "@uicpharm/standardization": "github:uicpharm/standardization#0.4.2",
+      "@uicpharm/standardization": "github:uicpharm/standardization#0.4.3",
       "@uicpharm/vitepress-theme": "github:uicpharm/vitepress-theme#1.0.1",
-      "concurrently": "9.1.2",
-      "gulp": "5.0.0",
-      "gulp-touch-fd": "2.0.0",
-      "merge-stream": "2.0.0",
       "strip-ansi": "7.1.0",
-      "vite-plugin-static-copy": "3.0.0"
+      "vite-plugin-static-copy": "3.1.0"
    }
 }

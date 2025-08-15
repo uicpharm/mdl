@@ -2,8 +2,8 @@
 .env
 .vscode
 backup
+dist
 docs/.vitepress/cache
-docs/.vitepress/dist
 environments/**/access_token.txt
 environments/**/backup.sql
 environments/**/refresh_token.txt
