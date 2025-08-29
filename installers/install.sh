@@ -48,6 +48,7 @@ base=/usr && [[ $(uname) == Darwin ]] && base=/usr/local
 sudo install -d $base/bin
 if $dev; then
    . "${0%/*}/../lib/mdl-common.sh"
+   . "${0%/*}/../lib/mdl-ui.sh"
    mdl_title
    mdl_path=$(realpath "${0%/*}/../bin/mdl")
    mdl_dest=$base/bin/mdl
@@ -61,6 +62,8 @@ else
    scr_dir="$dir/libexec"
    # shellcheck source=../lib/mdl-common.sh
    . "$dir/lib/mdl-common.sh" 2>/dev/null
+   # shellcheck source=../lib/mdl-ui.sh
+   . "$dir/lib/mdl-ui.sh" 2>/dev/null
    mdl_title
    sudo install -d $base/lib
    sudo install -d $base/libexec

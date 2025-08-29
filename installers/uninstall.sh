@@ -11,11 +11,13 @@ if [[ $EUID -ne 0 ]]; then
    echo "Part of uninstallation requires 'sudo'. You may be asked for a sudo password." >&2
 fi
 
-# Determine paths and load common functions``
+# Determine paths and load common functions
 base=$(realpath "$(dirname "$(realpath "$(which mdl)")")/..")
 [[ -L $(which mdl) ]] && linked=true || linked=false
 # shellcheck source=../lib/mdl-common.sh
 [[ -f $base/lib/mdl-common.sh ]] && . "$base/lib/mdl-common.sh"
+# shellcheck source=../lib/mdl-ui.sh
+[[ -f $base/lib/mdl-ui.sh ]] && . "$base/lib/mdl-ui.sh"
 mdl_title
 
 # Run the Moodle system removal script

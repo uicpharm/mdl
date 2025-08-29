@@ -1,6 +1,7 @@
 #!/bin/bash
 
 . "${0%/*}/../lib/mdl-common.sh"
+. "${0%/*}/../lib/mdl-ui.sh"
 
 # Defaults
 compose_file_url=$MDL_BASE_URL/compose/compose.yml

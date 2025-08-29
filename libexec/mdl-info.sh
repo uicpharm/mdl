@@ -2,6 +2,7 @@
 
 . "${0%/*}/../lib/mdl-common.sh"
 . "${0%/*}/../lib/mdl-formatting.sh"
+. "${0%/*}/../lib/mdl-ui.sh"
 
 # Validation
 valid_format='pretty json ini'

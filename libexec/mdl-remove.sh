@@ -1,6 +1,7 @@
 #!/bin/bash
 
 . "${0%/*}/../lib/mdl-common.sh"
+. "${0%/*}/../lib/mdl-ui.sh"
 
 display_help() {
    cat <<EOF
