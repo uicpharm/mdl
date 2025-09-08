@@ -83,10 +83,12 @@ for mname in $mnames; do
    git_cmd stash pop
 
    # Fix permissions
+   # Ref: https://docs.moodle.org/4x/sv/Security_recommendations#Running_Moodle_on_a_dedicated_server
    container_tool run --rm --name "${mname}_worker_fix_perms" \
       -v "$src_vol_name":/src "$MDL_SHELL_IMAGE" sh -c "\
          chown -R daemon:daemon /src
-         chmod -R g+rwx /src
+         find /src -type d -print0 | xargs -0 chmod 755
+         find /src -type f -print0 | xargs -0 chmod 644
       "
 
    echo '🎉 Done!'

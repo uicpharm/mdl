@@ -374,9 +374,13 @@ if [[ -n $mname ]]; then
          echo "Upgrading to latest version of Moodle $moodle_ver.x..."
          "$scr_dir/mdl-cli.sh" "$mname" upgrade --non-interactive
          # After upgrades, we need to fix permissions.
+         # Ref: https://docs.moodle.org/4x/sv/Security_recommendations#Running_Moodle_on_a_dedicated_server
          container_tool exec -it "${moodle_svc}" bash -c '
             chown -R daemon:daemon /bitnami/moodle /bitnami/moodledata
-            chmod -R g+rwx /bitnami/moodle /bitnami/moodledata
+            find /bitnami/moodle -type d -print0 | xargs -0 chmod 755
+            find /bitnami/moodle -type f -print0 | xargs -0 chmod 644
+            find /bitnami/moodledata -type d -print0 | xargs -0 chmod 700
+            find /bitnami/moodledata -type f -print0 | xargs -0 chmod 600
          '
       fi
       echo 🎉 Done!

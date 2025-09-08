@@ -119,21 +119,24 @@ for mname in $mnames; do
    data_vol_name=$(grep data <<< "$vols")
    src_vol_name=$(grep src <<< "$vols")
 
-   # Extract src and data to their volumes
+   # Extract src and data to their volumes, set permissions appropriately.
+   # Ref: https://docs.moodle.org/4x/sv/Security_recommendations#Running_Moodle_on_a_dedicated_server
    echo "Restoring $ul$src_vol_name$norm and $ul$data_vol_name$norm volumes..."
    container_tool run --rm --name "${mname}_worker_tar_data" -v "$data_vol_name":/data -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
       sh -c "\
          mkdir -p /data/sessions /data/trashdir /data/temp /data/localcache /data/cache
          tar xf '/backup/$data_target' -C /data
          chown -R daemon:daemon /data
-         chmod -R g+rwx /data
+         find /data -type d -print0 | xargs -0 chmod 700
+         find /data -type f -print0 | xargs -0 chmod 600
       " &
    pid_data=$!
    container_tool run --rm --name "${mname}_worker_cp_src" -v "$src_vol_name":/src -v "$temp_vol_name":/temp:ro "$MDL_SHELL_IMAGE" \
       sh -c "\
          cp -Rf /temp/. /src
          chown -R daemon:daemon /src
-         chmod -R g+rwx /src
+         find /src -type d -print0 | xargs -0 chmod 755
+         find /src -type f -print0 | xargs -0 chmod 644
       " &
    pid_src=$!
 
