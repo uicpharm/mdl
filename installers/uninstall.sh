@@ -29,9 +29,9 @@ if $linked; then
    echo 'It appears you installed mdl in developer mode, which just installs a symlink to'
    echo 'the project in your path.'
    echo
-   yorn "Do you want to remove the symlink?" y && sudo rm "$(which mdl)"
+   yorn "Do you want to remove the symlink?" 'y' && sudo rm "$(which mdl)"
 else
-   yorn "Remove the mdl executable and its associated files?" y && \
+   yorn "Remove the mdl executable and its associated files?" 'y' && \
    sudo rm -fv "$base"/bin/mdl "$base"/lib/mdl-*.sh "$base"/libexec/mdl-*.sh \
       "$base"/bin/mdl.old "$base"/lib/mdl-*.sh.old "$base"/libexec/mdl-*.sh.old
 fi
