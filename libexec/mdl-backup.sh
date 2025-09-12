@@ -21,6 +21,7 @@ source_host=
 source_type=
 compress_flag=
 ssh_args=
+container_tool=${MDL_CONTAINER_TOOL[*]}
 verbose=false
 dry_run=false
 
@@ -39,13 +40,14 @@ All options can be set in the environment's $ul.env$norm file. If you use the pa
 in your command call, that will override any value set in the .env file.
 
 Options:
--h, --help      Show this help message and exit.
--l, --label     Label for the backup. Default is today's date. (i.e. $ul$default_label$norm)
--m, --modules   Which module to backup. ($(echo "${valid_modules}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
--c, --compress  Which compression, default is $ul$default_compress_arg$norm. ($(echo "${valid_compress}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
--e, --ssh-args  Additional SSH arguments to pass when using ssh.
--n, --dry-run   Show what would've happened without executing.
--v, --verbose   Provide more verbose output.
+-h, --help            Show this help message and exit.
+-l, --label           Label for the backup. Default is today's date. (i.e. $ul$default_label$norm)
+-m, --modules         Which module to backup. ($(echo "${valid_modules}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
+-c, --compress        Which compression, default is $ul$default_compress_arg$norm. ($(echo "${valid_compress}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
+-e, --ssh-args        Additional SSH arguments to pass when using ssh.
+-t, --container-tool  Which container tool to use (docker or podman).
+-n, --dry-run         Show what would've happened without executing.
+-v, --verbose         Provide more verbose output.
 
 Source Options (for both LAMP and container sources):
 --source-host           Hostname or IP of source.
@@ -111,6 +113,7 @@ while getopts hsvnl:m:e:c:-: OPT; do
       v | verbose) verbose=true ;;
       n | dry-run) dry_run=true ;;
       l | label) label=$OPTARG ;;
+      t | container-tool) container_tool=$OPTARG ;;
       source-host) param_source_host=$OPTARG ;;
       source-sudo) param_source_sudo=$OPTARG ;;
       source-data-path) param_source_data_path=$OPTARG ;;
@@ -156,7 +159,7 @@ if [[ ! "$valid_compress" =~ $compress_arg ]]; then
 fi
 
 # Check necessary utilities
-cmds=(tar docker)
+cmds=(tar "${MDL_CONTAINER_TOOL[0]}")
 [[ $compress_arg != none ]] && cmds+=("$compress_arg")
 requires "${cmds[@]}"
 
@@ -224,7 +227,7 @@ for mname in $mnames; do
       if [[ $modules =~ db ]]; then
          source_db_container_cmd="
             ${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-            docker ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep mariadb | head -1
+            $container_tool ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep mariadb | head -1
             ${source_host:+"\\\"\""}
          "
          source_db_container=$(eval "$source_db_container_cmd")
@@ -233,7 +236,7 @@ for mname in $mnames; do
       if [[ $modules =~ data || $modules =~ src ]]; then
          vols_cmd="
             ${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-            docker volume ls -q --filter 'label=com.docker.compose.project=$mname'
+            $container_tool volume ls -q --filter 'label=com.docker.compose.project=$mname'
             ${source_host:+"\\\"\""}
          "
          vols=$(eval "$vols_cmd")
@@ -289,7 +292,7 @@ for mname in $mnames; do
 
    # shellcheck disable=SC2034
    data_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-   $is_container && data_cmd="$data_cmd docker run --rm --name '${mname}_worker_bk_data' -v '$source_data_volume':/data $MDL_SHELL_IMAGE"
+   $is_container && data_cmd="$data_cmd $container_tool run --rm --name '${mname}_worker_bk_data' -v '$source_data_volume':/data $MDL_SHELL_IMAGE"
    data_cmd="$data_cmd \
       tar c $compress_flag \
          --exclude='./trashdir' \
@@ -303,7 +306,7 @@ for mname in $mnames; do
    data_cmd=$data_cmd${source_host:+"\\\"\""}
    # shellcheck disable=SC2034
    src_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-   $is_container && src_cmd="$src_cmd docker run --rm --name '${mname}_worker_bk_src' -v '$source_src_volume':/src $MDL_SHELL_IMAGE"
+   $is_container && src_cmd="$src_cmd $container_tool run --rm --name '${mname}_worker_bk_src' -v '$source_src_volume':/src $MDL_SHELL_IMAGE"
    src_cmd="$src_cmd \
       tar c $compress_flag \
          -C $($is_container && echo /src || echo "$source_src_path") . \
@@ -312,7 +315,7 @@ for mname in $mnames; do
    # TODO: When piping to compression program, a failed status of mysqldump will be lost.
    # shellcheck disable=SC2034
    db_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-   $is_container && db_cmd="$db_cmd docker exec '$source_db_container'"
+   $is_container && db_cmd="$db_cmd $container_tool exec '$source_db_container'"
    db_cmd="$db_cmd \
       mysqldump \
          --user='$source_db_username' \

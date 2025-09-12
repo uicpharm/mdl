@@ -8,6 +8,10 @@ services:
          - backend
       environment:
          - MARIADB_ROOT_PASSWORD=${ROOT_PASSWORD:-password}
+         - MARIADB_DATABASE=${DB_NAME:-moodle}
+         - MARIADB_USER=${DB_USERNAME:-moodleuser}
+         - MARIADB_PASSWORD=${DB_PASSWORD:-password}
+         - MARIADB_SKIP_TEST_DB=yes
       volumes:
          - /etc/localtime:/etc/localtime:ro
          - db:/bitnami/mariadb
@@ -27,7 +31,6 @@ services:
          - MOODLE_DATABASE_USER=${DB_USERNAME:-moodleuser}
          - MOODLE_DATABASE_PASSWORD=${DB_PASSWORD:-password}
          - MOODLE_DATABASE_NAME=${DB_NAME:-moodle}
-         - MOODLE_SKIP_BOOTSTRAP=yes
          - MOODLE_HOST=${MOODLE_HOST:-localhost}
       volumes:
          - /etc/localtime:/etc/localtime:ro

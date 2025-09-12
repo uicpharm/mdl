@@ -11,15 +11,17 @@ if [[ $EUID -ne 0 ]]; then
    echo "Part of uninstallation requires 'sudo'. You may be asked for a sudo password." >&2
 fi
 
-# Determine paths and load common functions``
-install_root=$(realpath "$(dirname "$(realpath "$(which mdl)")")/..")
+# Determine paths and load common functions
+base=$(realpath "$(dirname "$(realpath "$(which mdl)")")/..")
 [[ -L $(which mdl) ]] && linked=true || linked=false
 # shellcheck source=../lib/mdl-common.sh
-[[ -f $install_root/lib/mdl-common.sh ]] && . "$install_root/lib/mdl-common.sh"
+[[ -f $base/lib/mdl-common.sh ]] && . "$base/lib/mdl-common.sh"
+# shellcheck source=../lib/mdl-ui.sh
+[[ -f $base/lib/mdl-ui.sh ]] && . "$base/lib/mdl-ui.sh"
 mdl_title
 
 # Run the Moodle system removal script
-[[ -f $install_root/libexec/mdl-remove.sh ]] && "$install_root/libexec/mdl-remove.sh" --sys
+[[ -f $base/libexec/mdl-remove.sh ]] && "$base/libexec/mdl-remove.sh" --sys
 echo
 
 # Remove the mdl executable and its associated files
@@ -27,9 +29,10 @@ if $linked; then
    echo 'It appears you installed mdl in developer mode, which just installs a symlink to'
    echo 'the project in your path.'
    echo
-   yorn "Do you want to remove the symlink?" y && sudo rm "$(which mdl)"
+   yorn "Do you want to remove the symlink?" 'y' && sudo rm "$(which mdl)"
 else
-   yorn "Remove the mdl executable and its associated files?" y && \
-   sudo rm -fv /usr/bin/mdl /usr/lib/mdl-*.sh /usr/libexec/mdl-*.sh
+   yorn "Remove the mdl executable and its associated files?" 'y' && \
+   sudo rm -fv "$base"/bin/mdl "$base"/lib/mdl-*.sh "$base"/libexec/mdl-*.sh \
+      "$base"/bin/mdl.old "$base"/lib/mdl-*.sh.old "$base"/libexec/mdl-*.sh.old
 fi
 echo 🎉 Done!

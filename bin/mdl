@@ -13,6 +13,7 @@ elif [[ $* =~ -v || $* =~ --version ]]; then
    sort | xargs cat | sha256sum | cut -c1-8
 else
    . "$scr_dir/../lib/mdl-common.sh"
+   . "$scr_dir/../lib/mdl-ui.sh"
    mdl_title
    [ -n "$sub_cmd" ] && echo -e "The subcommand $sub_cmd doesn't exist.\n"
 

@@ -44,12 +44,14 @@ else
 fi
 
 # Install executable and its dependencies
-sudo install -d /usr/bin
+base=/usr && [[ $(uname) == Darwin ]] && base=/usr/local
+sudo install -d $base/bin
 if $dev; then
    . "${0%/*}/../lib/mdl-common.sh"
+   . "${0%/*}/../lib/mdl-ui.sh"
    mdl_title
    mdl_path=$(realpath "${0%/*}/../bin/mdl")
-   mdl_dest=/usr/bin/mdl
+   mdl_dest=$base/bin/mdl
    sudo ln -s "$mdl_path" "$mdl_dest"
    echo "Installed mdl in developer mode as a symlink at: $mdl_dest"
 else
@@ -60,19 +62,21 @@ else
    scr_dir="$dir/libexec"
    # shellcheck source=../lib/mdl-common.sh
    . "$dir/lib/mdl-common.sh" 2>/dev/null
+   # shellcheck source=../lib/mdl-ui.sh
+   . "$dir/lib/mdl-ui.sh" 2>/dev/null
    mdl_title
-   sudo install -d /usr/lib
-   sudo install -d /usr/libexec
-   sudo install -b "$dir/bin/mdl" /usr/bin
+   sudo install -d $base/lib
+   sudo install -d $base/libexec
+   sudo install -b "$dir/bin/mdl" $base/bin
    for file in "$dir"/lib/mdl-*; do
-      [[ -f $file ]] && sudo install -b "$file" /usr/lib
+      [[ -f $file ]] && sudo install -b "$file" $base/lib
    done
    for file in "$dir"/libexec/mdl-*; do
-      [[ -f $file && ! -L $file  ]] && sudo install -b "$file" /usr/libexec
+      [[ -f $file && ! -L $file  ]] && sudo install -b "$file" $base/libexec
    done
    for file in "$dir"/libexec/mdl-*; do
       [[ -L $file ]] && (
-         cd /usr/libexec || echo "Could not change to /usr/libexec" >&2
+         cd $base/libexec || echo "Could not change to $base/libexec" >&2
          sudo ln -s -f "$(readlink "$file")" "$(basename "$file")"
       )
    done
@@ -81,4 +85,4 @@ echo 🎉 The mdl CLI is installed!
 echo
 
 # Initialize the system
-mdl init --no-title
+mdl init --no-title -c "${MDL_BASE_URL/main/$branch}/compose/compose.yml"

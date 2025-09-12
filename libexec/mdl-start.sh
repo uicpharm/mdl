@@ -19,14 +19,14 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-requires docker docker-compose
+requires "${MDL_CONTAINER_TOOL[0]}" "${MDL_COMPOSE_TOOL[0]}"
 
 mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 follow=false
 quiet=false
 start=true
 wait=false
-[[ $(docker --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false
+[[ $(container_tool --version) == podman* ]] && IS_PODMAN=true || IS_PODMAN=false
 
 for arg in "$@"; do
    if [[ $arg == --wait || $arg == -w ]]; then
@@ -42,17 +42,17 @@ done
 
 for mname in $mnames; do
 
-   docker_compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
+   compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
    $quiet || echo "Starting $mname..."
    . "$scr_dir/mdl-calc-images.sh" "$mname"
    export_env_and_update_config "$mname"
 
    # Explicitly add the pod so it has its lifecycle container and the exact name we want
-   $IS_PODMAN && ! docker pod exists "$mname" && podman pod create --name "$mname"
+   $IS_PODMAN && ! container_tool pod exists "$mname" && container_tool pod create --name "$mname"
    $IS_PODMAN && podman_args=(--in-pod "$mname")
    args=('-d')
    $start || args+=('--no-start')
-   docker-compose "${podman_args[@]}" -p "$mname" -f "$docker_compose_path" up "${args[@]}"
+   compose_tool "${podman_args[@]}" -p "$mname" -f "$compose_path" up "${args[@]}"
 
    if $wait; then
       # Do not exit until environment is fully running

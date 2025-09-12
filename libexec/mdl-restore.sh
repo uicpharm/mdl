@@ -24,7 +24,7 @@ EOF
 [[ $* =~ -r || $* =~ --rm ]] && remove_when_done=true || remove_when_done=false
 
 # Check necessary utilities
-requires tar bzip2 gzip xz docker find sed grep uniq
+requires "${MDL_CONTAINER_TOOL[0]}" tar bzip2 gzip xz find sed grep uniq
 
 mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 
@@ -102,8 +102,8 @@ for mname in $mnames; do
 
    # Restore src to a temp volume first, to retrieve the git branch version
    temp_vol_name="${mname}_temp"
-   docker volume rm -f "$temp_vol_name" > /dev/null
-   docker run --rm --name "${mname}_worker_tar_src" -v "$temp_vol_name":/src -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
+   container_tool volume rm -f "$temp_vol_name" > /dev/null
+   container_tool run --rm --name "${mname}_worker_tar_src" -v "$temp_vol_name":/src -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
       tar xf "/backup/$src_target" -C /src
    branchver=$(src_vol_name="$temp_vol_name" "$scr_dir/mdl-moodle-version.sh" "$mname")
    . "$scr_dir/mdl-calc-images.sh" "$mname"
@@ -114,26 +114,29 @@ for mname in $mnames; do
    branchver="$branchver" "$scr_dir/mdl-start.sh" "$mname" -q -n
 
    # Find all the volume names
-   vols=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname")
+   vols=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname")
    db_vol_name=$(grep db <<< "$vols")
    data_vol_name=$(grep data <<< "$vols")
    src_vol_name=$(grep src <<< "$vols")
 
-   # Extract src and data to their volumes
+   # Extract src and data to their volumes, set permissions appropriately.
+   # Ref: https://docs.moodle.org/4x/sv/Security_recommendations#Running_Moodle_on_a_dedicated_server
    echo "Restoring $ul$src_vol_name$norm and $ul$data_vol_name$norm volumes..."
-   docker run --rm --name "${mname}_worker_tar_data" -v "$data_vol_name":/data -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
+   container_tool run --rm --name "${mname}_worker_tar_data" -v "$data_vol_name":/data -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
       sh -c "\
          mkdir -p /data/sessions /data/trashdir /data/temp /data/localcache /data/cache
          tar xf '/backup/$data_target' -C /data
          chown -R daemon:daemon /data
-         chmod -R g+rwx /data
+         find /data -type d -print0 | xargs -0 chmod 700
+         find /data -type f -print0 | xargs -0 chmod 600
       " &
    pid_data=$!
-   docker run --rm --name "${mname}_worker_cp_src" -v "$src_vol_name":/src -v "$temp_vol_name":/temp:ro "$MDL_SHELL_IMAGE" \
+   container_tool run --rm --name "${mname}_worker_cp_src" -v "$src_vol_name":/src -v "$temp_vol_name":/temp:ro "$MDL_SHELL_IMAGE" \
       sh -c "\
          cp -Rf /temp/. /src
          chown -R daemon:daemon /src
-         chmod -R g+rwx /src
+         find /src -type d -print0 | xargs -0 chmod 755
+         find /src -type f -print0 | xargs -0 chmod 644
       " &
    pid_src=$!
 
@@ -146,7 +149,7 @@ for mname in $mnames; do
          sql_path="$MDL_BACKUP_DIR/$db_target"
       fi
       db_runner="${mname}_worker_db_restore"
-      docker run -d --rm --name "$db_runner" \
+      container_tool run -d --rm --name "$db_runner" \
          --privileged \
          -e MARIADB_ROOT_PASSWORD="${ROOT_PASSWORD:-password}" \
          -e MARIADB_USER="${DB_USERNAME:-moodleuser}" \
@@ -160,17 +163,17 @@ for mname in $mnames; do
       # MariaDB doesn't have a "run task and exit" mode, so we just wait until
       # the logs indicate it has finished, then we stop it.
       last_check=0
-      until docker logs --since "$last_check" "$db_runner" 2>&1 | grep -q 'MariaDB setup finished'; do
+      until container_tool logs --since "$last_check" "$db_runner" 2>&1 | grep -q 'MariaDB setup finished'; do
          last_check=$(($(date +%s)-1))
          sleep 5
       done
-      docker stop "$db_runner" > /dev/null
+      container_tool stop "$db_runner" > /dev/null
    ) &
    db_pid=$!
 
    # When done, clean up. Down the stack and remove the temp volume.
    wait $pid_src
-   docker volume rm -f "$temp_vol_name" > /dev/null
+   container_tool volume rm -f "$temp_vol_name" > /dev/null
    wait $pid_data $db_pid
    branchver="$branchver" "$scr_dir/mdl-stop.sh" "$mname" -q
 

@@ -22,14 +22,14 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-requires docker grep cut
+requires "${MDL_CONTAINER_TOOL[0]}" grep cut uuidgen
 
 mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 targetbranch="$2"
 
 for mname in $mnames; do
 
-   src_vol_name=${src_vol_name:-$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)}
+   src_vol_name=${src_vol_name:-$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)}
    if [ -z "$src_vol_name" ]; then
       echo "Source code volume does not exist for $mname. Can't upgrade."
       exit 1
@@ -40,25 +40,22 @@ for mname in $mnames; do
 
    echo "Upgrading $mname..."
    function git_cmd() {
-      docker run --rm --name "${mname}_worker_git" \
-         -v "$src_vol_name":/src -w /src "$MDL_GIT_IMAGE" \
-         -c safe.directory=/src "$@"
+      container_tool run --rm --name "$mname-git-$(uuidgen)" -v "$src_vol_name":/git "$MDL_GIT_IMAGE" -c safe.directory=/git "$@"
    }
 
    # Pull latest repo data
    git_cmd remote set-url origin https://github.com/moodle/moodle.git
-   git_cmd fetch -np
+   curr_branch="$(git_cmd symbolic-ref --short HEAD)"
+   targetbranches="$(git_cmd ls-remote --heads 2>/dev/null | grep -E "MOODLE_[3-9][0-9]+_STABLE" | cut -d"/" -f3)"
 
    # Remove any untracked code
    git_cmd stash save -u
    git_cmd reset --hard
    git_cmd clean -dfe local
-   curr_branch="$(git_cmd symbolic-ref --short HEAD)"
    echo "Your current branch: $curr_branch"
    git_cmd status -s -b
 
-   # Get list of branches. If targetbranch isn't in list, prompt user to select one
-   targetbranches="$(git_cmd branch -lr | grep -E "MOODLE_[3-9][0-9]+_STABLE" | cut -d"/" -f2)"
+   # If targetbranch isn't in branch list, prompt user to select one
    echo "$targetbranches" | grep -qw "$targetbranch" || targetbranch=""
    if  [ -z "$targetbranch" ]; then
       PS3="Select the version to upgrade to: "
@@ -67,18 +64,33 @@ for mname in $mnames; do
          echo "$targetbranches" | grep -qw "$targetbranch" && break
       done
    fi
-   [ "$curr_branch" = "$targetbranch" ] && echo "You're on this branch now. Will fast forward to latest commit." || echo "Will switch to $targetbranch"
 
    # Pull/checkout new code
    if [ "$curr_branch" = "$targetbranch" ]; then
-      git_cmd pull --ff-only --no-tags
+      echo "You're on this branch now. Will fast forward to latest commit."
+      git_cmd pull --ff-only --no-tags origin "$targetbranch"
    else
+      echo "Will switch to $ul$targetbranch$norm."
+      git_cmd fetch -np origin "$targetbranch"
       git_cmd checkout -f --guess "$targetbranch"
+      git_cmd branch -D "$curr_branch"
+      git_cmd branch -rd "origin/$curr_branch"
+      echo Performing git optimizations...
+      git_cmd gc --prune=now
    fi
 
    # Pop stash
    git_cmd stash pop
 
-   echo 'Done!'
+   # Fix permissions
+   # Ref: https://docs.moodle.org/4x/sv/Security_recommendations#Running_Moodle_on_a_dedicated_server
+   container_tool run --rm --name "${mname}_worker_fix_perms" \
+      -v "$src_vol_name":/src "$MDL_SHELL_IMAGE" sh -c "\
+         chown -R daemon:daemon /src
+         find /src -type d -print0 | xargs -0 chmod 755
+         find /src -type f -print0 | xargs -0 chmod 644
+      "
+
+   echo '🎉 Done!'
 
 done

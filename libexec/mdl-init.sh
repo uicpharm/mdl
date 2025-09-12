@@ -1,26 +1,76 @@
 #!/bin/bash
 
 . "${0%/*}/../lib/mdl-common.sh"
+. "${0%/*}/../lib/mdl-ui.sh"
 
+# Defaults
+compose_file_url=$MDL_BASE_URL/compose/compose.yml
+display_title=true
+force=false
+install_moodle=true
+
+# Gets used ports from all environments
+get_used_ports() {
+   local used_ports=()
+   for mname in $("$scr_dir/mdl-select-env.sh" all); do
+      used_ports+=("$("$scr_dir/mdl-info.sh" "$mname" MOODLE_PORT)")
+   done
+   echo "${used_ports[@]}"
+}
+
+# Finds the first available port starting from 8001
+find_available_port() {
+   local port=8000
+   # Collect all used ports
+   local used_ports
+   used_ports=$(get_used_ports)
+   # Keep incrementing until we find an available port
+   while true; do
+      (( port++ ))
+      [[ " $used_ports " != *" $port "* ]] && break
+   done
+   echo "$port"
+}
+
+# Help
 display_help() {
    cat <<EOF
-Usage: $(script_name) <ENV>
+Usage: $(script_name) <ENV> [OPTIONS]
 
 Initializes a Moodle environment and, if the system isn't initialized,
 sets up the directories and configuration files for the system.
 
 Options:
--h, --help         Show this help message and exit.
--f, --force        Force initialization even if already initialized.
-    --no-title     Do not display the title banner.
+-h, --help             Show this help message and exit.
+-c, --compose-file-url URL to download compose file for this system.
+-f, --force            Force initialization even if already initialized.
+    --no-title         Do not display the title banner.
+    --skip-install     Do not install a fresh environment when setting
+                       up the Moodle environment. Just allocate it.
 EOF
 }
 
-[[ $* =~ -h || $* =~ --help ]] && display_help && exit
-[[ $* =~ -f || $* =~ --force ]] && force=true || force=false
-[[ $* =~ --no-title ]] && display_title=false || display_title=true
+# Positional parameter #1: Environment
+[[ $1 != -* && -n $1 ]] && mname="$1" && shift
 
-requires curl docker
+# Collect optional arguments.
+# shellcheck disable=SC2214
+# spellchecker: disable-next-line
+while getopts hc:f-: OPT; do
+   support_long_options
+   case "$OPT" in
+      h | help) display_help; exit ;;
+      c | compose-file-url) compose_file_url=$OPTARG ;;
+      f | force) force=true ;;
+      no-title) display_title=false ;;
+      skip-install) install_moodle=false ;;
+      \?) echo "${red}Invalid option: -$OPT$norm" >&2 ;;
+      *) echo "${red}Some of these options are invalid:$norm $*" >&2; exit 2 ;;
+   esac
+done
+shift $((OPTIND - 1))
+
+requires curl uuidgen
 
 # Positional parameter #1: Environment
 [[ $1 != -* && -n $1 ]] && mname="$1"
@@ -34,6 +84,43 @@ if $should_init_system; then
    echo "Let's get started! Please answer these configuration questions. You can change"
    echo "them later by editing the configuration file saved at:"
    echo "$ul$MDL_CONFIG_FILE$rmul"
+   echo
+   # Detect existence of Podman or Docker
+   docker_version=$(docker --version 2> /dev/null)
+   podman_version=$(podman --version 2> /dev/null)
+   podman_compose_version=$(podman-compose --version 2> /dev/null)
+   [[ $docker_version =~ Docker ]] && has_docker=true || has_docker=false
+   [[ $podman_version =~ podman ]] && has_podman=true || has_podman=false
+   [[ -n $podman_compose_version ]] && has_podman_compose=true || has_podman_compose=false
+   $has_docker && echo -e "Detected $ul$docker_version$rmul on your system.\n"
+   $has_podman && echo -e "Detected $ul$podman_version$rmul on your system.\n"
+   # Which container tool is installed?
+   if ! $has_docker && ! $has_podman; then
+      echo "${bold}${red}You don't seem to have Docker or Podman installed.$norm Aborting setup for now."
+      echo "Once you've installed Docker or Podman, you can resume setup with ${bold}${ul}mdl init$norm."
+      exit 1
+   elif $has_docker && $has_podman; then
+      PS3="Which tool do you want to use with mdl?"
+      select tool_choice in Docker Podman; do break; done
+   else
+      $has_docker && tool_choice=Docker
+      $has_podman && tool_choice=Podman
+      if ! yorn "Do you want to use $tool_choice with mdl?" y; then
+         unset tool_choice
+         echo "Aborting for now. First install the tool you plan to use with mdl."
+         echo "When you are ready, you can resume setup with ${bold}${ul}mdl init$norm."
+         exit 1
+      fi
+   fi
+   [[ $tool_choice == Docker ]] && MDL_CONTAINER_TOOL=(docker) && MDL_COMPOSE_TOOL=(docker compose)
+   [[ $tool_choice == Podman ]] && MDL_CONTAINER_TOOL=(podman) && MDL_COMPOSE_TOOL=(podman-compose)
+   # Handle podman installed but no podman-compose
+   if [[ $tool_choice == Podman ]] && ! $has_podman_compose; then
+      echo "${bold}${red}Oops, you have Podman installed, but you still need ${ul}podman-compose$rmul.$norm"
+      echo "Once you've installed podman-compose, you can resume setup with ${bold}${ul}mdl init$norm."
+      exit 1
+   fi
+   # Configuration questions
    MDL_ENVS_DIR=$(ask "Where do you want to store environments?" "$MDL_ENVS_DIR")
    MDL_BACKUP_DIR=$(ask "Where do you want to store backups?" "$MDL_BACKUP_DIR")
    MDL_COMPOSE_DIR=$(ask "Where do you want to store Docker Compose files?" "$MDL_COMPOSE_DIR")
@@ -46,13 +133,34 @@ if $should_init_system; then
    for x in MDL_ENVS_DIR MDL_BACKUP_DIR MDL_COMPOSE_DIR MDL_VERSIONS_FILE MDL_VERSIONS_SOURCE_URL MDL_VERSIONS_SOURCE_CHECK_FREQUENCY; do
       echo "$x='${!x}'" >> "$MDL_CONFIG_FILE"
    done
+   echo "MDL_CONTAINER_TOOL=(${MDL_CONTAINER_TOOL[*]})" >> "$MDL_CONFIG_FILE"
+   echo "MDL_COMPOSE_TOOL=(${MDL_COMPOSE_TOOL[*]})" >> "$MDL_CONFIG_FILE"
    echo "Configuration saved to: $ul$MDL_CONFIG_FILE$rmul"
    install -d "$MDL_ENVS_DIR"
    install -d "$MDL_BACKUP_DIR"
    install -d "$MDL_COMPOSE_DIR"
-   echo 'Downloading compose file(s)...'
-   if ! curl -fsL "$MDL_BASE_URL/compose/compose.yml" -o "$MDL_COMPOSE_DIR/compose.yml"; then
-      echo "Failed to download compose file. Please check your internet connection or the URL." >&2
+   if [[ -L $(which mdl) ]]; then
+      # If in dev mode, link to the project compose file.
+      compose_file=$(realpath "$scr_dir/../compose/compose.yml")
+      echo 'Since mdl is in developer mode, installing symlink to compose file at:'
+      echo "$ul$compose_file$rmul"
+      ln -s -F "$compose_file" "$MDL_COMPOSE_DIR/compose.yml"
+   elif [[ -n $compose_file_url ]]; then
+      # Download the provided compose file URL.
+      echo 'Downloading compose file from:'
+      echo "$ul$compose_file_url$rmul"
+      if ! curl -fsL "$compose_file_url" -o "$MDL_COMPOSE_DIR/compose.yml"; then
+         echo "Failed to download compose file. Please check your internet connection or the URL." >&2
+         exit 1
+      fi
+   elif [[ -e $MDL_COMPOSE_DIR/compose.yml ]]; then
+      # A blank compose file URL was provided, but it's ok, because a file is present.
+      echo 'Skipping compose file download. That is ok because one is already installed.'
+   else
+      # A blank compose file URL was provided, and they don't have one. This will break
+      # things, so we are forced to abort.
+      echo 'Skipped compose file download because no URL was provided.' >&2
+      echo 'This step is critical, so we need to abort.' >&2
       exit 1
    fi
    "$scr_dir/mdl-calc-images.sh"
@@ -74,7 +182,21 @@ if [[ -n $mname ]]; then
       DB_PASSWORD=$(ask "Database password" "$DB_PASSWORD")
       echo
       echo "${ul}Moodle Configuration$rmul"
+      [[ $MOODLE_PORT == 8000 ]] && MOODLE_PORT=$(find_available_port)
+      while true; do
+         MOODLE_PORT=$(ask "Port number" "$MOODLE_PORT")
+         if ! [[ $MOODLE_PORT =~ ^[0-9]+$ ]] || [[ $MOODLE_PORT -le 1024 ]] || [[ $MOODLE_PORT -ge 65535 ]]; then
+            echo "${red}Port must be a number between 1024 and 65535.$norm" >&2
+         elif [[ " $(get_used_ports) " == *" $MOODLE_PORT "* ]]; then
+            echo "${red}Port $ul$MOODLE_PORT$rmul is already in use by another environment.$norm" >&2
+         else
+            break
+         fi
+         MOODLE_PORT=$(find_available_port)
+      done
+      [[ $MOODLE_HOST == localhost:8000 ]] && MOODLE_HOST="localhost:$MOODLE_PORT"
       MOODLE_HOST=$(ask "Host name" "$MOODLE_HOST")
+      [[ $WWWROOT == http://localhost:8000 ]] && WWWROOT="http://$MOODLE_HOST"
       WWWROOT=$(ask "Site address" "$WWWROOT")
       echo
       echo "${ul}Remote Source Server Configuration$rmul"
@@ -126,7 +248,7 @@ if [[ -n $mname ]]; then
       env_file="$MDL_ENVS_DIR/$mname/.env"
       # Find any custom variables in the .env file that are not in the default list.
       variables=(
-         ROOT_PASSWORD DB_NAME DB_USERNAME DB_PASSWORD MOODLE_HOST WWWROOT
+         ROOT_PASSWORD DB_NAME DB_USERNAME DB_PASSWORD MOODLE_HOST WWWROOT MOODLE_PORT
          SOURCE_HOST SOURCE_DATA_PATH SOURCE_SRC_PATH SOURCE_DB_NAME SOURCE_DB_USERNAME SOURCE_DB_PASSWORD
          BOX_CLIENT_ID BOX_CLIENT_SECRET BOX_REDIRECT_URI BOX_FOLDER_ID
       )
@@ -165,7 +287,102 @@ if [[ -n $mname ]]; then
             exit 1
          fi
       fi
-      # TODO: Instantiate volumes with a starter Moodle environment/database.
+      # Instantiate environment with a starter Moodle environment/database.
+      if $install_moodle; then
+         # Get versions from version matrix, and ask user which version to install.
+         versions=()
+         versions_content=$(< "$MDL_VERSIONS_FILE")
+         include_line=false
+         while read -r line; do
+            $include_line && versions+=("$line") || include_line=true
+         done <<< "$versions_content"
+         for ver_string in "${versions[@]}"; do
+            IFS=' ' read -ra var_array <<< "$ver_string"
+            branch_array+=("${var_array[0]}")
+            moodle_array+=("$(echo "${var_array[1]}" | cut -d'.' -f1-2)")
+         done
+         PS3="Select the version to install: "
+         select moodle_ver in "${moodle_array[@]}"; do
+            if (( REPLY > 0 && REPLY <= ${#moodle_array[@]} )); then
+               branchver=${branch_array[$REPLY - 1]}
+               break
+            else
+               echo "Invalid selection. Please try again."
+            fi
+         done
+         echo
+         # Start the environment. Bitnami image will automatically bootstrap install. Wait to finish.
+         branchver="$branchver" "$scr_dir/mdl-start.sh" "$mname" -q
+         moodle_svc=$(container_tool ps --filter "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle)
+         src_vol_name=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)
+         # Do git install once standard install completes.
+         function git_cmd() {
+            container_tool run --rm -t --name "$mname-git-$(uuidgen)" -v "$src_vol_name":/git "$MDL_GIT_IMAGE" -c safe.directory=/git "$@"
+         }
+         (
+            # Wait until standard bootstrap install completes.
+            last_check=0
+            until container_tool logs --since "$last_check" "$moodle_svc" 2>&1 | grep -q 'Moodle setup finished'; do
+               last_check=$(($(date +%s)-1))
+               sleep 5
+            done
+            #
+            # We want to use Moodle's automatically-generated config.php file, but it creates the
+            # configuration for $CFG->wwwroot like this:
+            #
+            # if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') {
+            #   $CFG->wwwroot   = 'https://' . 'moodle_host';
+            # } else {
+            #   $CFG->wwwroot   = 'http://' . 'moodle_host';
+            # }
+            #
+            # We don't want that. So we use awk to find the the block, and we replace it with just
+            # a single line for `$CFG->wwwroot = 'moodle_host';` which will be easy to handle.
+            #
+            # shellcheck disable=SC2016
+            awk_cmd='
+               BEGIN { skip = 0 }
+               /if *\(isset\(\$_SERVER\[.HTTPS.\]\) *&& *\$_SERVER\[.HTTPS.\] *== *'\''on'\''\) *{/ {
+                  skip = 1; next
+               }
+               skip && /^\s*}\s*$/ {
+                  skip = 0
+                  print "$CFG->wwwroot   = '\'$WWWROOT\'';"
+                  next
+               }
+               !skip { print }
+            '
+            config_file=/bitnami/moodle/config.php
+            revised_config_file=$(mktemp)
+            container_tool exec -it "$moodle_svc" awk "$awk_cmd" "$config_file" > "$revised_config_file"
+            container_tool cp "$revised_config_file" "$moodle_svc":"$config_file"
+            # Bitnami image unfortunately does not install the git repo. So, we add git after the fact.
+            # This works fine since the Moodle repo branch will always be even with or slightly ahead of the Bitnami image.
+            targetbranch="MOODLE_${branchver}_STABLE"
+            git_cmd init -b main
+            git_cmd remote add origin https://github.com/moodle/moodle.git
+            git_cmd fetch -np origin "$targetbranch"
+            git_cmd checkout -f "$targetbranch"
+         ) > /dev/null &
+         git_pid=$!
+         yorn 'Do you want to optimize the git repository? It will save space but take more time.' 'n' && do_gc=true || do_gc=false
+         echo -n 'Installing... '
+         wait "$git_pid"
+         echo 'Finished.'
+         $do_gc && echo 'Optimizing git repository...' && git_cmd gc --prune=now --aggressive
+         # The checkout will probably result in a slightly higher version, so we run an upgrade.
+         echo "Upgrading to latest version of Moodle $moodle_ver.x..."
+         "$scr_dir/mdl-cli.sh" "$mname" upgrade --non-interactive
+         # After upgrades, we need to fix permissions.
+         # Ref: https://docs.moodle.org/4x/sv/Security_recommendations#Running_Moodle_on_a_dedicated_server
+         container_tool exec -it "${moodle_svc}" bash -c '
+            chown -R daemon:daemon /bitnami/moodle /bitnami/moodledata
+            find /bitnami/moodle -type d -print0 | xargs -0 chmod 755
+            find /bitnami/moodle -type f -print0 | xargs -0 chmod 644
+            find /bitnami/moodledata -type d -print0 | xargs -0 chmod 700
+            find /bitnami/moodledata -type f -print0 | xargs -0 chmod 600
+         '
+      fi
       echo 🎉 Done!
    else
       echo "Environment $ul$mname$rmul is already initialized!" >&2

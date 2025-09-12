@@ -20,6 +20,8 @@ default_envs_dir="$mdl_root/environments"
 default_versions_file="$mdl_root/versions.txt"
 default_versions_source_url=$MDL_BASE_URL/versions.txt
 default_versions_source_check_frequency=604800 # 7 days
+default_container_tool=(docker)
+default_compose_tool=(docker compose)
 
 # Paths
 export scr_dir=${scr_dir:-$(realpath "$(dirname "$(readlink -f "$0")")/../libexec")}
@@ -33,6 +35,8 @@ export MDL_ENVS_DIR="${MDL_ENVS_DIR:-$default_envs_dir}"
 export MDL_VERSIONS_FILE="${MDL_VERSIONS_FILE:-$default_versions_file}"
 export MDL_VERSIONS_SOURCE_URL="${MDL_VERSIONS_SOURCE_URL:-$default_versions_source_url}"
 export MDL_VERSIONS_SOURCE_CHECK_FREQUENCY="${MDL_VERSIONS_SOURCE_CHECK_FREQUENCY:-$default_versions_source_check_frequency}"
+[[ ${#MDL_CONTAINER_TOOL} -eq 0 ]] && export MDL_CONTAINER_TOOL=("${default_container_tool[@]}")
+[[ ${#MDL_COMPOSE_TOOL} -eq 0 ]] && export MDL_COMPOSE_TOOL=("${default_compose_tool[@]}")
 
 # Formatting
 export norm=$(tput sgr0)
@@ -41,22 +45,11 @@ export rmul=$(tput rmul)
 export bold=$(tput bold)
 export red=$(tput setaf 1)
 export green=$(tput setaf 2)
+export yellow=$(tput setaf 3)
 
-# Title for the script
-function mdl_title() {
-   local -r ver=$("$scr_dir/../bin/mdl" -v)
-   echo "$red"
-   echo "     ░▒██████████▓░ ░▒█████▓░ ░▒█▒░           ░▓████▓░ ░▒█▓░      ░▒█▒░"
-   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░░▒█▒░░▒█▓░      ░▒█▒░"
-   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░     ░▒█▓░      ░▒█▒░"
-   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░     ░▒█▓░      ░▒█▒░"
-   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░     ░▒█▓░      ░▒█▒░"
-   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░░▒█▒░          ░▒█▒░░▒█▒░░▒█▓░      ░▒█▒░"
-   echo "     ░▒█▒░░▒█▒░░▒█▒░░▒█████▓░ ░▒███████▓▒░    ░▓████▓░ ░▒██████▓▒░░▒█▒░"
-   echo "$norm$bold"
-   echo "CLI for managing containerized Moodle environments! $(tput setaf 3)(${ver/mdl version /v})"
-   echo "$norm"
-}
+# Container handling
+function compose_tool() { "${MDL_COMPOSE_TOOL[@]}" "$@"; }
+function container_tool() { "${MDL_CONTAINER_TOOL[@]}" "$@"; }
 
 # Throws an error if the provided command(s) are not available on the system
 function requires() {
@@ -127,39 +120,6 @@ function decompress() {
    fi
    # If we got here, the file is not compressed. Throw an error.
    return 2
-}
-
-# Asks a question and returns the response. If the user does not provide a response, it
-# returns the default value. If no default is provided, it returns an empty string.
-function ask() {
-   local question=$1
-   local default=$2
-   echo -n "$question" >&2
-   [[ -n $default ]] && echo -n " [$default]" >&2
-   echo -n ": " >&2
-   read -r response
-   echo "${response:-$default}"
-}
-
-# Asks a yes/no question and returns 0 for 'yes' and 1 for 'no'. If the user does not
-# provide a response, it uses the default value.
-function yorn() {
-   local question=$1
-   local default=${2:-y}
-   while true; do
-      echo -n "$question " >&2
-      [[ $default =~ [Yy] ]] && echo -n "[Y/n]: " >&2 || echo -n "[y/N]: " >&2
-      read -r response
-      [[ -z $response ]] && response=$default
-      response=$(echo "${response:0:1}" | tr '[:upper:]' '[:lower:]')
-      if [[ $response == y ]]; then
-         return 0
-      elif [[ $response == n ]]; then
-         return 1
-      else
-         echo "Please answer 'y' or 'n'." >&2
-      fi
-   done
 }
 
 # Used to clear all known vars to proactively avoid data leaks.
@@ -247,8 +207,8 @@ function update_config() {
 EOF
    )"
 
-   docker volume inspect "${1}_src" &> /dev/null && \
-   docker run --rm -t --name "${1}_worker_update_config" \
+   container_tool volume inspect "${1}_src" &> /dev/null && \
+   container_tool run --rm -t --name "${1}_worker_update_config" \
       -v "$env_dir":/env:Z,ro \
       -v "${1}_src":/src \
       "$MDL_SHELL_IMAGE" sh -c "$cmd"

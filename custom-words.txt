@@ -15,6 +15,7 @@ defaultwwwroot
 elif
 fastdb
 initdb
+isset
 libexec
 localcache
 localtime
@@ -35,6 +36,7 @@ targetbranch
 TARGETBRANCH
 targetbranches
 trashdir
+uuidgen
 webservicepassword
 webserviceurl
 webserviceusername

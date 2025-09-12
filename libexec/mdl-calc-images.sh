@@ -3,7 +3,6 @@
 
 . "${0%/*}/../lib/mdl-common.sh"
 
-port_chart_settings="%-15s %-8s\n"
 ver_chart_settings="%-9s %-11s %-11s\n"
 
 # Load version matrix, including assessing if we need to download from internet
@@ -56,19 +55,6 @@ $(
    done
 )
 
-It also returns the port that should be opened for the Moodle container as an
-environment variable named ${ul}MOODLE_PORT$rmul.
-
-$(
-   printf "$ul$port_chart_settings$rmul" "Environment" "Port"
-   num=8000
-   while read -r dir; do
-      (( num++ ))
-      printf "$port_chart_settings" "$(basename "$dir")" "$num"
-   done < <(find "$MDL_ENVS_DIR" -mindepth 1 -maxdepth 1 -type d | sort)
-   (( num == 8000 )) && echo 'No environments found.'
-)
-
 Options:
 -h, --help      Show this help message and exit.
 -u, --update    Update versions file now.
@@ -104,13 +90,3 @@ done
 
 export MARIADB_IMAGE="docker.io/bitnami/mariadb:$mariadb_ver"
 export MOODLE_IMAGE="docker.io/bitnami/moodle:$moodle_ver"
-
-# Calculate Moodle port
-num=8000
-while read -r dir; do
-   (( num++ ))
-   if [[ $(basename "$dir") == "$mname" ]]; then
-      export MOODLE_PORT=$num
-      break
-   fi
-done < <(find "$MDL_ENVS_DIR" -mindepth 1 -maxdepth 1 -type d | sort)

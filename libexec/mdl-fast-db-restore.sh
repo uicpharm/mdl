@@ -18,7 +18,7 @@ EOF
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
 
-requires docker
+requires "${MDL_CONTAINER_TOOL[0]}"
 
 mnames=$("$scr_dir/mdl-select-env.sh" "$1")
 
@@ -54,16 +54,16 @@ for mname in $mnames; do
    db_target="${mname}_${label}_dbfiles.tar"
 
    # Get database volume name, or, if it doesn't exist, make the name we expect it to be
-   db_vol_name=$(docker volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
+   db_vol_name=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname" | grep db)
    if [ -z "$db_vol_name" ]; then
       db_vol_name="${mname}_db"
    else
-      docker volume rm "$db_vol_name" 2> /dev/null # If volume removal fails, its fine
+      container_tool volume rm "$db_vol_name" 2> /dev/null # If volume removal fails, its fine
    fi
 
    # Recreate volume and extract to the database volume
-   docker volume create --label "com.docker.compose.project=$mname" "$db_vol_name"
-   docker run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup "$MDL_SHELL_IMAGE" tar xf "/backup/$db_target" -C /db
+   container_tool volume create --label "com.docker.compose.project=$mname" "$db_vol_name"
+   container_tool run --rm --privileged -v "$db_vol_name":/db -v "$MDL_BACKUP_DIR":/backup "$MDL_SHELL_IMAGE" tar xf "/backup/$db_target" -C /db
 
    echo "Done restoring the fast backup of database for $mname with label $label."
 
