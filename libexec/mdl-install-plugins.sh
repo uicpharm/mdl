@@ -1,0 +1,1 @@
+mdl-install-plugin.sh
