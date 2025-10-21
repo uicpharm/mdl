@@ -63,7 +63,7 @@ for mname in $mnames; do
          if ! moodle_check="$("$scr_dir/mdl-cli.sh" "$mname" checks --filter=core)"; then
             moodle_check=''
          fi
-         [ -z "$moodle_check" ] && sleep 6
+         [ -z "$moodle_check" ] && sleep 1
       done
       $quiet || echo ' Done!'
    fi
