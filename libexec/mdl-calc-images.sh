@@ -3,7 +3,7 @@
 
 . "${0%/*}/../lib/mdl-common.sh"
 
-ver_chart_settings="%-9s %-11s %-11s\n"
+ver_chart_settings="%-7s %-45s %-45s\n"
 
 # Load version matrix, including assessing if we need to download from internet
 should_download_versions_file=false
@@ -88,5 +88,5 @@ for ver_string in "${versions[@]}"; do
    fi
 done
 
-export MARIADB_IMAGE="docker.io/bitnami/mariadb:$mariadb_ver"
-export MOODLE_IMAGE="docker.io/bitnami/moodle:$moodle_ver"
+export MARIADB_IMAGE=$mariadb_ver
+export MOODLE_IMAGE=$moodle_ver

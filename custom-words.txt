@@ -1,5 +1,6 @@
 activemname
 altwwwroot
+bitnamilegacy
 branchver
 Caddyfile
 dataroot
