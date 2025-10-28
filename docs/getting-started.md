@@ -4,12 +4,18 @@ This package is a suite of utilities that help make it easier to set up and main
 Moodle environments with Docker or podman. There are convenience scripts for handling
 backups, restores, upgrades, and more.
 
-## Installation
+## Installation/Uninstallation
 
 Use this command to download and run the installer:
 
-```sh
-sh <(curl -H 'Cache-Control: no-cache, no-store' -o- https://raw.githubusercontent.com/uicpharm/mdl/refs/heads/main/installers/install.sh)
+```bash
+bash <(curl -H 'Cache-Control: no-cache, no-store' -o- https://raw.githubusercontent.com/uicpharm/mdl/refs/heads/main/installers/install.sh)
+```
+
+Correspondingly, if you want to uninstall, you can download and run the uninstall script:
+
+```bash
+bash <(curl -H 'Cache-Control: no-cache, no-store' -o- https://raw.githubusercontent.com/uicpharm/mdl/refs/heads/main/installers/uninstall.sh)
 ```
 
 ## Initializing an Environment
@@ -42,5 +48,21 @@ At that point, it can be controlled via `systemctl`, so you can issue commands l
 `systemctl stop mymoodle` or `systemctl start mymoodle`, etc. You can continue to use our
 helper commands like `mdl start`, `mdl status`, `mdl stop`, etc without conflicting with
 the service.
+
+## Contributing
+
+To develop for the [mdl](https://github.com/uicpharm/mdl) project, you can install it in
+dev mode, where the mdl commands will be linked to a git checkout of the project. To do
+this, uninstall the traditional installation if it is already installed, check out the
+project, and install it in dev mode like this:
+
+```sh
+git clone git@github.com:uicpharm/mdl.git
+cd mdl
+./installers/install.sh --dev
+```
+
+Now you can work on the scripts in the project and the will be used when you run any mdl
+commands. If you run `mdl info` it will confirm that it is running in dev mode.
 
 [docker-host]: https://github.com/uicpharm/docker-host#readme
