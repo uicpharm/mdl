@@ -46,6 +46,10 @@ are listed at the bottom to make this reference easier to read.
 
 <pre>{{ man['mdl-init'] }}</pre>
 
+### `mdl install-plugin` (or `mdl install-plugins`)
+
+<pre>{{ man['mdl-install-plugin'] }}</pre>
+
 ### `mdl list` (or `mdl ls`)
 
 <pre>{{ man['mdl-list'] }}</pre>
