@@ -13,6 +13,8 @@ fi
 
 # Determine paths and load common functions
 base=$(realpath "$(dirname "$(realpath "$(which mdl)")")/..")
+# Explicitly set scr_dir in case we're running from a curl pipe
+scr_dir="$base/libexec"
 [[ -L $(which mdl) ]] && linked=true || linked=false
 # shellcheck source=../lib/mdl-common.sh
 [[ -f $base/lib/mdl-common.sh ]] && . "$base/lib/mdl-common.sh"
