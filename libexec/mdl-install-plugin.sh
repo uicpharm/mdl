@@ -148,7 +148,7 @@ for mname in $mnames; do
    done
    # Copy all final work into the container
    while IFS= read -r -d '' dir; do
-      container_tool cp -q "$dir" "$container:$base_dir"
+      container_tool cp "$dir" "$container:$base_dir" 1> /dev/null
    done < <(find "$temp_moodle" -mindepth 1 -maxdepth 1 -type d -print0)
 
    # Clean up
