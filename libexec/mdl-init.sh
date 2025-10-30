@@ -9,6 +9,28 @@ display_title=true
 force=false
 install_moodle=true
 
+# Validates environment name according to Docker Compose project naming rules
+validate_env_name() {
+   local name="$1"
+   # Check if name is empty
+   if [[ -z "$name" ]]; then
+      return 1
+   fi
+   # Check if name starts with a letter or number (not a hyphen or underscore)
+   if ! [[ "$name" =~ ^[a-z0-9] ]]; then
+      echo "${red}${bold}Invalid environment name: '$name'$norm" >&2
+      echo "Environment name must start with a letter or number." >&2
+      return 1
+   fi
+   # Check if name contains only lowercase alphanumeric characters, hyphens, and underscores
+   if ! [[ "$name" =~ ^[a-z0-9_-]+$ ]]; then
+      echo "${red}${bold}Invalid environment name: '$name'$norm" >&2
+      echo "Environment name must consist only of lowercase alphanumeric characters, hyphens, and underscores." >&2
+      return 1
+   fi
+   return 0
+}
+
 # Gets used ports from all environments
 get_used_ports() {
    local used_ports=()
@@ -74,6 +96,13 @@ requires curl uuidgen
 
 # Positional parameter #1: Environment
 [[ $1 != -* && -n $1 ]] && mname="$1"
+
+# Validate environment name if provided
+if [[ -n $mname ]]; then
+   if ! validate_env_name "$mname"; then
+      exit 1
+   fi
+fi
 
 $display_title && mdl_title
 
