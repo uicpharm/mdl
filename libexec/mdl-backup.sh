@@ -3,7 +3,7 @@
 . "${0%/*}/../lib/mdl-common.sh"
 
 # Valid Options
-valid_modules='src data db'
+valid_modules='src data db fastdb'
 valid_compress='bzip2 gzip xz none'
 
 # Defaults
@@ -44,6 +44,7 @@ Options:
 -l, --label           Label for the backup. Default is today's date. (i.e. $ul$default_label$norm)
 -m, --modules         Which module to backup. ($(echo "${valid_modules}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
 -c, --compress        Which compression, default is $ul$default_compress_arg$norm. ($(echo "${valid_compress}" | sed "s/ /, /g" | sed "s/\([^, ]*\)/${ul}\1$norm/g"))
+-f, --fastdb          Perform an unsafe fast database backup instead of a SQL dump.
 -e, --ssh-args        Additional SSH arguments to pass when using ssh.
 -t, --container-tool  Which container tool to use (docker or podman).
 -n, --dry-run         Show what would've happened without executing.
@@ -95,7 +96,7 @@ fi
 # Collect optional arguments.
 # shellcheck disable=SC2214
 # spellchecker: disable-next-line
-while getopts hsvnl:m:e:c:-: OPT; do
+while getopts hfsvnl:m:e:c:-: OPT; do
    support_long_options
    case "$OPT" in
       h | help)
@@ -108,6 +109,14 @@ while getopts hsvnl:m:e:c:-: OPT; do
       c | compress)
          # Convert to lowercase.
          compress_arg=$(echo "$OPTARG" | tr '[:upper:]' '[:lower:]')
+         ;;
+      f | fastdb)
+         # Remove "db" and add "fastdb" to modules list
+         new_modules='fastdb'
+         for word in $modules; do
+            [[ $word == db || $word == fastdb ]] || new_modules="$new_modules $word"
+         done
+         modules=$new_modules
          ;;
       e | ssh-args) ssh_args=$OPTARG ;;
       v | verbose) verbose=true ;;
@@ -146,7 +155,7 @@ fi
 
 # Only valid modules
 for m in $modules; do
-   if [[ ! "$valid_modules" =~ $m ]]; then
+   if [[ " $valid_modules " != *" $m "* ]]; then
       echo -e "${red}Error: Invalid module type: $m.$norm\n" >&2
       exit 1
    fi
@@ -157,6 +166,17 @@ if [[ ! "$valid_compress" =~ $compress_arg ]]; then
    echo -e "${red}Error: Invalid compression type: $compress_arg.$norm\n" >&2
    exit 1
 fi
+
+# Fast DB backup is only for container sources
+if [[ $modules =~ fastdb ]]; then
+   if $is_container; then
+      echo -e "${yellow}Warning: Fast database backups are unsafe for production use.$norm\n" >&2
+   else
+      echo -e "${red}Error: Fast database backups are only supported for container sources.$norm\n" >&2
+      exit 1
+   fi
+fi
+
 
 # Check necessary utilities
 cmds=(tar "${MDL_CONTAINER_TOOL[0]}")
@@ -224,7 +244,7 @@ for mname in $mnames; do
    # If "container", the container must be active in order to dump the database for the "db" module.
    source_db_container=''
    if $is_container; then
-      if [[ $modules =~ db ]]; then
+      if [[ " $modules " == *" db "* ]]; then
          source_db_container_cmd="
             ${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
             $container_tool ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep mariadb | head -1
@@ -233,7 +253,7 @@ for mname in $mnames; do
          source_db_container=$(eval "$source_db_container_cmd")
          [[ -z $source_db_container ]] && echo "${red}The database container cannot be found. Start the environment to perform a backup." >&2 && exit 1
       fi
-      if [[ $modules =~ data || $modules =~ src ]]; then
+      if [[ $modules =~ data || $modules =~ src || $modules =~ fastdb ]]; then
          vols_cmd="
             ${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
             $container_tool volume ls -q --filter 'label=com.docker.compose.project=$mname'
@@ -242,6 +262,7 @@ for mname in $mnames; do
          vols=$(eval "$vols_cmd")
          [[ $modules =~ data ]] && source_data_volume=$(grep data <<< "$vols")
          [[ $modules =~ src ]] && source_src_volume=$(grep src <<< "$vols")
+         [[ $modules =~ fastdb ]] && source_db_volume=$(grep db <<< "$vols")
       fi
    fi
 
@@ -259,7 +280,8 @@ for mname in $mnames; do
    # Targets
    [[ $modules =~ data ]] && data_target="$MDL_BACKUP_DIR/${mname}_${label}_data.tar$compress_ext"
    [[ $modules =~ src ]] && src_target="$MDL_BACKUP_DIR/${mname}_${label}_src.tar$compress_ext"
-   [[ $modules =~ db ]] && db_target="$MDL_BACKUP_DIR/${mname}_${label}_db.sql$compress_ext"
+   [[ $modules =~ fastdb ]] && fastdb_target="$MDL_BACKUP_DIR/${mname}_${label}_dbfiles.tar$compress_ext"
+   [[ " $modules " == *" db "* ]] && db_target="$MDL_BACKUP_DIR/${mname}_${label}_db.sql$compress_ext"
 
    action_word='Backing up'
    echo -e "$ul$bold$action_word $mname environment$norm"
@@ -271,6 +293,7 @@ for mname in $mnames; do
       [[ -n $source_data_path ]] &&    echo "$bold   'data' Path:$norm $source_data_path"
       [[ -n $source_src_volume ]] &&   echo "$bold  'src' Volume:$norm $source_src_volume"
       [[ -n $source_data_volume ]] &&  echo "$bold 'data' Volume:$norm $source_data_volume"
+      [[ -n $source_db_volume ]] &&    echo "$bold   'db' Volume:$norm $source_db_volume"
       [[ -n $source_db_container ]] && echo "$bold  DB Container:$norm $source_db_container"
       [[ -n $source_db_name ]] &&      echo "$bold       DB Name:$norm $source_db_name"
       [[ -n $source_db_username ]] &&  echo "$bold   DB Username:$norm $source_db_username"
@@ -282,6 +305,7 @@ for mname in $mnames; do
       [[ -n $src_target ]] &&          echo "$bold    'src' Path:$norm $src_target"
       [[ -n $data_target ]] &&         echo "$bold   'data' Path:$norm $data_target"
       [[ -n $db_target ]] &&           echo "$bold       DB Path:$norm $db_target"
+      [[ -n $fastdb_target ]] &&       echo "$bold  Fast DB Path:$norm $fastdb_target"
       echo
    fi
 
@@ -290,6 +314,7 @@ for mname in $mnames; do
       exit 1
    fi
 
+   # MODULE: data
    # shellcheck disable=SC2034
    data_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
    $is_container && data_cmd="$data_cmd $container_tool run --rm --name '${mname}_worker_bk_data' -v '$source_data_volume':/data $MDL_SHELL_IMAGE"
@@ -304,6 +329,8 @@ for mname in $mnames; do
          -C $($is_container && echo /data || echo "$source_data_path") . \
    "
    data_cmd=$data_cmd${source_host:+"\\\"\""}
+
+   # MODULE: src
    # shellcheck disable=SC2034
    src_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
    $is_container && src_cmd="$src_cmd $container_tool run --rm --name '${mname}_worker_bk_src' -v '$source_src_volume':/src $MDL_SHELL_IMAGE"
@@ -312,6 +339,15 @@ for mname in $mnames; do
          -C $($is_container && echo /src || echo "$source_src_path") . \
    "
    src_cmd=$src_cmd${source_host:+"\\\"\""}
+
+   # MODULE: fastdb
+   # shellcheck disable=SC2034
+   fastdb_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
+   $is_container && fastdb_cmd="$fastdb_cmd $container_tool run --rm --name '${mname}_worker_bk_fastdb' -v '$source_db_volume':/db $MDL_SHELL_IMAGE"
+   $is_container && fastdb_cmd="$fastdb_cmd tar c $compress_flag -C /db ."
+   fastdb_cmd=$fastdb_cmd${source_host:+"\\\"\""}
+
+   # MODULE: db
    # TODO: When piping to compression program, a failed status of mysqldump will be lost.
    # shellcheck disable=SC2034
    db_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
@@ -326,9 +362,11 @@ for mname in $mnames; do
    "
    db_cmd=$db_cmd${source_host:+"\\\"\""}
    [[ $compress_arg != none ]] && db_cmd="$db_cmd | $compress_arg -cq9"
+
+   # Actually EXECUTE the commands
    pids=()
-   for t in data src db; do
-      if [[ $modules =~ $t ]]; then
+   for t in $valid_modules; do
+      if [[ " $modules " == *" $t "* ]]; then
          targ_var=${t}_target; targ=${!targ_var}
          cmd_var=${t}_cmd; cmd=${!cmd_var}
          echo "$mname $t: $targ"

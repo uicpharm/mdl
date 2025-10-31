@@ -14,6 +14,7 @@ Options:
 -h, --help         Show this help message and exit.
 -b, --box          Use backup sets in Box instead of the local backup folder.
 -x, --extract      If compressed, leave the decompressed files when done extracting them.
+-f, --fastdb       Use an unsafe fast database backup instead of a SQL dump.
 -r, --rm           Remove the local copy of the backup when done.
 EOF
 }
@@ -22,6 +23,8 @@ EOF
 [[ $* =~ -b || $* =~ --box ]] && box=true || box=false
 [[ $* =~ -x || $* =~ --extract ]] && extract=true || extract=false
 [[ $* =~ -r || $* =~ --rm ]] && remove_when_done=true || remove_when_done=false
+modules='src data db' && [[ $* =~ -f || $* =~ --fastdb ]] && modules='src data dbfiles'
+[[ $modules =~ dbfiles ]] && echo "${yellow}Warning: Fast database restores are unsafe for production use.$norm" >&2
 
 # Check necessary utilities
 requires "${MDL_CONTAINER_TOOL[0]}" tar bzip2 gzip xz find sed grep uniq
@@ -56,23 +59,23 @@ for mname in $mnames; do
    fi
 
    # Backup targets
-   declare data_target src_target db_target # Explicitly declared to make shellcheck happy
-   for t in data src db; do
+   declare data_target src_target db_target dbfiles_target # Explicitly declared to make shellcheck happy
+   for t in $modules; do
       target="${t}_target"; local_target="local_${t}_target"
-      declare $target= $local_target=
+      declare "$target"= "$local_target"=
       # Find filenames of target files
       while IFS= read -r file; do
-         [[ -z ${!target} && $file =~ ^${mname}_${label}_${t}\. ]] && declare $target="$file"
+         [[ -z ${!target} && $file =~ ^${mname}_${label}_${t}\. ]] && declare "$target"="$file"
       done <<< "$files"
       # Find filenames of local files, in case we're looking in Box
       while IFS= read -r file; do
-         [[ $file =~ ^${mname}_${label}_${t}\. ]] && declare $local_target="$file"
+         [[ $file =~ ^${mname}_${label}_${t}\. ]] && declare "$local_target"="$file"
       done <<< "$local_files"
    done
 
    # List (and if requested, download from Box) each target. Abort if a target can't be found.
    echo "Using $backup_source_desc backup set with label $ul$label$rmul:"
-   for t in data src db; do
+   for t in $modules; do
       target="${t}_target"; local_target="local_${t}_target"
       echo "  - $bold$t:$norm ${!target:-${red}Not found, so we will abort$norm}"
       # If target is not found, abort. Otherwise, download if Box.com is the source.
@@ -87,7 +90,7 @@ for mname in $mnames; do
       fi
       # If `extract` is requested, decompress the files
       if $extract && new_target=$(decompress "$MDL_BACKUP_DIR/${!target}"); then
-         declare $target="$(basename "$new_target")"
+         declare "$target"="$(basename "$new_target")"
          echo "    - Extracted $ul${!target}$rmul."
       fi
    done
@@ -140,47 +143,59 @@ for mname in $mnames; do
       " &
    pid_src=$!
 
-   # Start a MariaDB container to restore the database
-   (
+   # Either fast database backup or a full SQL dump restore
+   if [[ -n $dbfiles_target ]]; then
+      # Fast database restore
       echo "Restoring $ul$db_vol_name$norm volume..."
-      sql_path="$(mktemp -d)/${mname}_backup.sql"
-      if ! decompress "$MDL_BACKUP_DIR/$db_target" "$sql_path" -k > /dev/null; then
-         # If decompression fails, it probably isn't compressed. Point at original file instead.
-         sql_path="$MDL_BACKUP_DIR/$db_target"
-      fi
-      db_runner="${mname}_worker_db_restore"
-      container_tool run -d --rm --name "$db_runner" \
-         --privileged \
-         -e MARIADB_ROOT_PASSWORD="${ROOT_PASSWORD:-password}" \
-         -e MARIADB_USER="${DB_USERNAME:-moodleuser}" \
-         -e MARIADB_PASSWORD="${DB_PASSWORD:-password}" \
-         -e MARIADB_DATABASE="${DB_NAME:-moodle}" \
-         -e MARIADB_COLLATE=utf8mb4_unicode_ci \
-         -e MARIADB_SKIP_TEST_DB=yes \
-         -v "$db_vol_name":/bitnami/mariadb \
-         -v "$sql_path":/docker-entrypoint-initdb.d/restore.sql:Z,ro \
-         "$MARIADB_IMAGE" > /dev/null
-      # MariaDB doesn't have a "run task and exit" mode, so we just wait until
-      # the logs indicate it has finished, then we stop it.
-      last_check=0
-      until container_tool logs --since "$last_check" "$db_runner" 2>&1 | grep -q 'MariaDB setup finished'; do
-         last_check=$(($(date +%s)-1))
-         sleep 5
-      done
-      container_tool stop "$db_runner" > /dev/null
-   ) &
-   db_pid=$!
+      container_tool run --rm --name "${mname}_worker_tar_dbfiles" -v "$db_vol_name":/data -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
+         sh -c "tar xf '/backup/$dbfiles_target' -C /data" &
+      pid_db=$!
+   elif [[ -n $db_target ]]; then
+      # Start a MariaDB container to restore the database
+      (
+         echo "Restoring $ul$db_vol_name$norm volume..."
+         sql_path="$(mktemp -d)/${mname}_backup.sql"
+         if ! decompress "$MDL_BACKUP_DIR/$db_target" "$sql_path" -k > /dev/null; then
+            # If decompression fails, it probably isn't compressed. Point at original file instead.
+            sql_path="$MDL_BACKUP_DIR/$db_target"
+         fi
+         db_runner="${mname}_worker_db_restore"
+         container_tool run -d --rm --name "$db_runner" \
+            --privileged \
+            -e MARIADB_ROOT_PASSWORD="${ROOT_PASSWORD:-password}" \
+            -e MARIADB_USER="${DB_USERNAME:-moodleuser}" \
+            -e MARIADB_PASSWORD="${DB_PASSWORD:-password}" \
+            -e MARIADB_DATABASE="${DB_NAME:-moodle}" \
+            -e MARIADB_COLLATE=utf8mb4_unicode_ci \
+            -e MARIADB_SKIP_TEST_DB=yes \
+            -v "$db_vol_name":/bitnami/mariadb \
+            -v "$sql_path":/docker-entrypoint-initdb.d/restore.sql:Z,ro \
+            "$MARIADB_IMAGE" > /dev/null
+         # MariaDB doesn't have a "run task and exit" mode, so we just wait until
+         # the logs indicate it has finished, then we stop it.
+         last_check=0
+         until container_tool logs --since "$last_check" "$db_runner" 2>&1 | grep -q 'MariaDB setup finished'; do
+            last_check=$(($(date +%s)-1))
+            sleep 5
+         done
+         container_tool stop "$db_runner" > /dev/null
+      ) &
+      pid_db=$!
+   fi
 
    # When done, clean up. Down the stack and remove the temp volume.
    wait $pid_src
    container_tool volume rm -f "$temp_vol_name" > /dev/null
-   wait $pid_data $db_pid
+   wait $pid_data
+   [[ -n $pid_db ]] && wait "$pid_db"
    branchver="$branchver" "$scr_dir/mdl-stop.sh" "$mname" -q
 
    # Remove the local backup files when done, if they specified that option
    if $remove_when_done; then
       echo Removing local backup files...
-      rm -fv "$MDL_BACKUP_DIR/$data_target" "$MDL_BACKUP_DIR/$src_target" "$MDL_BACKUP_DIR/$db_target"
+      rm -fv "$MDL_BACKUP_DIR/$data_target" "$MDL_BACKUP_DIR/$src_target"
+      [[ -n $db_target ]] && rm -fv "$MDL_BACKUP_DIR/$db_target"
+      [[ -n $dbfiles_target ]] && rm -fv "$MDL_BACKUP_DIR/$dbfiles_target"
    fi
 
    # Update Moodle config
