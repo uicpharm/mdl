@@ -299,7 +299,7 @@ if [[ -n $mname ]]; then
          for ver_string in "${versions[@]}"; do
             IFS=' ' read -ra var_array <<< "$ver_string"
             branch_array+=("${var_array[0]}")
-            moodle_array+=("$(echo "${var_array[1]}" | cut -d'.' -f1-2)")
+            moodle_array+=("$(echo "${var_array[1]}" | cut -d':' -f2 | cut -d'.' -f1-2)")
          done
          PS3="Select the version to install: "
          select moodle_ver in "${moodle_array[@]}"; do
