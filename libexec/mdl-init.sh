@@ -169,6 +169,13 @@ elif [[ -z $mname ]]; then
 fi
 
 if [[ -n $mname ]]; then
+   # Validate mname. Abort if we received an invalid name.
+   if ! [[ $mname =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+      echo "${red}The environment name $ul$mname$rmul is not valid.$norm" >&2
+      echo "${yellow}Names can only contain lowercase alphanumeric characters, hyphens, and underscores,$norm" >&2
+      echo "${yellow}and must start with a letter or number.$norm" >&2
+      exit 1
+   fi
    if [[ ! -d "$MDL_ENVS_DIR/$mname" ]] || $force; then
       echo "Creating environment: $ul$mname$rmul"
       mkdir -p "$MDL_ENVS_DIR/$mname"

@@ -43,8 +43,7 @@ for mname in $mnames; do
    $box && files=$("$scr_dir/mdl-box.sh" "$mname" ls) || files=$local_files
    local_files=$(echo "$local_files" | xargs -r -n1 basename)
    files=$(echo "$files" | xargs -r -n1 basename)
-   src_files=$(echo "$files" | awk -F'_' '$3 ~ /src/')
-   labels="$(echo "$src_files" | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
+   labels="$(echo "$files" | extract_label "$mname" src | sort | uniq)"
 
    # What timestamp of backup do they want? (Select from the list if they did not provide)
    $box && backup_source_desc='Box.com' || backup_source_desc='local'

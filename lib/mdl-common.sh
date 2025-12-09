@@ -122,6 +122,21 @@ function decompress() {
    return 2
 }
 
+# Function that uses awk to safely extract label from filename. Expects to receive
+# filename from pipe, such as: `echo $mname | extract_label <MNAME> <TYPE>`
+function extract_label() {
+   cat | awk -v type="$2" -v mname="$1" '
+      # Filter essentially looks for: /_<TYPE>\./ for example type "src" matches "_src."
+      /_'"$2"'\./ {
+         # Remove leading "<MNAME>_", so mname "moodle" matches "moodle_" at start of name.
+         sub("^" mname "_", "");
+         # Remove ending "_<TYPE>.*", so type "src" matches "_src.tar", "_src.tar.bz2", etc at end of name.
+         sub("_" type "\\..*$", "");
+         print $0
+      }
+   '
+}
+
 # Used to clear all known vars to proactively avoid data leaks.
 # Usage: unset_env <ENV>
 function unset_env() {

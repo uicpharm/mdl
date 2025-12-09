@@ -71,9 +71,9 @@ for mname in $mnames; do
    fi
 
    # Collect the list of backups
-   $type_backup && labels="$(find "$MDL_BACKUP_DIR" -name "${mname}_*_src.*" | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
-   $type_box && box_labels="$("$scr_dir/mdl-box.sh" "$mname" ls | awk -F'_' '$3 ~ /src/' | cut -d"_" -f2- | sed -e "s/_src\..*//" | uniq | sort)"
-   $type_fastdb && fast_labels=$(find "$MDL_BACKUP_DIR" -name "${mname}_*_dbfiles.tar" | cut -d"_" -f2- | sed -e "s/_dbfiles.tar//" | sort)
+   $type_backup && labels="$(find "$MDL_BACKUP_DIR" -name "${mname}_*_src.*" -print0 | xargs -0 -r -n1 basename | extract_label "$mname" src | sort | uniq)"
+   $type_box && box_labels="$("$scr_dir/mdl-box.sh" "$mname" ls | extract_label "$mname" src | sort | uniq)"
+   $type_fastdb && fast_labels=$(find "$MDL_BACKUP_DIR" -name "${mname}_*_dbfiles.*" -print0 | xargs -0 -r -n1 basename | extract_label "$mname" dbfiles | sort | uniq)
 
    # Output: Normal Backups
    if $type_backup && ! $quiet; then
