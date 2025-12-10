@@ -20,13 +20,13 @@ branch=main
 [[ $1 != -* && -n $1 ]] && branch=$1
 
 # Requires curl
-if [[ -z $(which curl 2>/dev/null) ]]; then
+if ! command -v curl &>/dev/null; then
    echo "$(tput bold)$(tput setaf 1)This command requires $(tput smul)curl$(tput rmul) to work.$(tput sgr0)" >&2
    exit 1
 fi
 
 # If `mdl` is already installed, it must not be a symlink
-mdl_path=$(which mdl 2>/dev/null)
+mdl_path=$(command -v mdl)
 if [[ -n $mdl_path && -L $mdl_path ]]; then
    echo 'The mdl CLI is already installed in developer mode. You do not have to reinstall' >&2
    echo 'it. If you want to reinstall it in normal mode, please uninstall it first.' >&2

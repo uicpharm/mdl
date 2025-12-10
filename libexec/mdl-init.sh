@@ -139,7 +139,7 @@ if $should_init_system; then
    install -d "$MDL_ENVS_DIR"
    install -d "$MDL_BACKUP_DIR"
    install -d "$MDL_COMPOSE_DIR"
-   if [[ -L $(which mdl) ]]; then
+   if [[ -L $(command -v mdl) ]]; then
       # If in dev mode, link to the project compose file.
       compose_file=$(realpath "$scr_dir/../compose/compose.yml")
       echo 'Since mdl is in developer mode, installing symlink to compose file at:'

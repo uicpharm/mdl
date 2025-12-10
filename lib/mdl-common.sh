@@ -55,7 +55,7 @@ function container_tool() { "${MDL_CONTAINER_TOOL[@]}" "$@"; }
 function requires() {
    local ok=true
    for cmd in "$@"; do
-      if [[ -z $(which "$cmd" 2>/dev/null) ]]; then
+      if ! command -v "$cmd" &>/dev/null; then
          echo "${red}${bold}This command requires $ul$cmd$rmul to work.$norm" >&2
          ok=false
       elif [[ $cmd =~ docker || $cmd =~ podman ]]; then

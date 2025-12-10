@@ -92,7 +92,7 @@ backup_status=true && [[ ! -d "$MDL_BACKUP_DIR" ]] && ok=false && backup_status=
 compose_status=true && [[ ! -d "$MDL_COMPOSE_DIR" ]] && ok=false && compose_status=false
 container_tool_status=true && [[ -z "$("${MDL_CONTAINER_TOOL[0]}" --version 2> /dev/null)" ]] && ok=false && container_tool_status=false
 compose_tool_status=true && [[ -z "$("${MDL_COMPOSE_TOOL[0]}" --version 2> /dev/null)" ]] && ok=false && compose_tool_status=false
-mdl_path=$(which mdl)
+mdl_path=$(command -v mdl)
 mdl_realpath=$(realpath "$mdl_path")
 [[ -L $mdl_path ]] && mdl_status="in dev mode at $ul$mdl_realpath$rmul" || mdl_status="at $ul$mdl_path$rmul"
 
