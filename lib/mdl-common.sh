@@ -87,8 +87,18 @@ function support_long_options() {
    fi
 }
 
+function calc_compression_tool() {
+   local ext=${1##*.}
+   local cmd
+   [[ $ext == bz2 ]] && cmd=bzip2 && command -v pbzip2 &>/dev/null && cmd=pbzip2
+   [[ $ext == gz ]] && cmd=gzip && command -v pigz &>/dev/null && cmd=pigz
+   [[ $ext == xz ]] && cmd=xz && command -v pixz &>/dev/null && cmd=pixz
+   echo "$cmd"
+}
+
 # Receives file path and decompresses it. Can detect bzip2, gzip and xz files. If none of
-# those extensions match the filename, it throws an error. After successful decompression,
+# those extensions match the filename, it throws an error. It will always try to use the
+# parallel processing version of the command if available. After successful decompression,
 # the original file is deleted unless you specify `--keep`.
 #
 # Parameters:
@@ -99,14 +109,11 @@ function decompress() {
    local file_path=$1
    local out=$2
    local ext=${file_path##*.}
-   local cmd
+   local cmd=$(calc_compression_tool "$ext")
    # Check options
    [[ $* =~ -k || $* =~ --keep ]] && keep=true || keep=false
    # File path is required
    [[ -z $file_path ]] && return 1
-   [[ $ext == bz2 ]] && cmd=bzip2
-   [[ $ext == gz ]] && cmd=gzip
-   [[ $ext == xz ]] && cmd=xz
    if [[ -n $cmd ]]; then
       # If they didn't provide an explicit output path, use file path sans extension
       [[ -z $out ]] && out=${file_path%".$ext"}

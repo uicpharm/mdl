@@ -104,9 +104,14 @@ for mname in $mnames; do
 
    # Restore src to a temp volume first, to retrieve the git branch version
    temp_vol_name="${mname}_temp"
+   worker_name="${mname}_worker_src_restore"
+   compression_tool=$(calc_compression_tool "$src_target")
+   pipe_cmd=(cat) && [[ -n $compression_tool ]] && pipe_cmd=("$compression_tool" -d -c)
    container_tool volume rm -f "$temp_vol_name" > /dev/null
-   container_tool run --rm --name "${mname}_worker_tar_src" -v "$temp_vol_name":/src -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
-      tar xf "/backup/$src_target" -C /src
+   # We create this container and never start it, because we need an owner of the volume for `docker cp`
+   container_tool create --name "$worker_name" -v "$temp_vol_name":/src busybox > /dev/null
+   container_tool cp - "$worker_name":/src < <("${pipe_cmd[@]}" "$MDL_BACKUP_DIR/$src_target") > /dev/null
+   container_tool rm -f "$worker_name" > /dev/null
    branchver=$(src_vol_name="$temp_vol_name" "$scr_dir/mdl-moodle-version.sh" "$mname")
    . "$scr_dir/mdl-calc-images.sh" "$mname"
 
@@ -115,23 +120,34 @@ for mname in $mnames; do
    # Create the stack, so we have the volumes that are auto-attached to the stack
    branchver="$branchver" "$scr_dir/mdl-start.sh" "$mname" -q -n
 
-   # Find all the volume names
+   # Find all the volume and container names, and their volume mount points.
    vols=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname")
    db_vol_name=$(grep db <<< "$vols")
    data_vol_name=$(grep data <<< "$vols")
    src_vol_name=$(grep src <<< "$vols")
+   containers=$(container_tool ps -a -f "label=com.docker.compose.project=$mname" --format '{{.Names}}')
+   db_container=$(grep mariadb <<< "$containers" | head -1)
+   db_path=$(container_tool inspect "$db_container" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("db"))) | .Destination')
+   moodle_container=$(grep moodle <<< "$containers" | head -1)
+   data_path=$(container_tool inspect "$moodle_container" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("data"))) | .Destination')
+   src_path=$(container_tool inspect "$moodle_container" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("src"))) | .Destination')
 
    # Extract src and data to their volumes, set permissions appropriately.
    # Ref: https://docs.moodle.org/4x/sv/Security_recommendations#Running_Moodle_on_a_dedicated_server
-   echo "Restoring $ul$src_vol_name$norm and $ul$data_vol_name$norm volumes..."
-   container_tool run --rm --name "${mname}_worker_tar_data" -v "$data_vol_name":/data -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
-      sh -c "\
-         mkdir -p /data/sessions /data/trashdir /data/temp /data/localcache /data/cache
-         tar xf '/backup/$data_target' -C /data
-         chown -R daemon:daemon /data
-         find /data -type d -print0 | xargs -0 chmod 700
-         find /data -type f -print0 | xargs -0 chmod 600
-      " &
+   echo "Restoring $ul$src_vol_name:$src_path$norm and $ul$data_vol_name:$data_path$norm volumes..."
+   (
+      compression_tool=$(calc_compression_tool "$data_target")
+      pipe_cmd=(cat) && [[ -n $compression_tool ]] && pipe_cmd=("$compression_tool" -d -c)
+      container_tool cp - "$moodle_container":"$data_path" < <("${pipe_cmd[@]}" "$MDL_BACKUP_DIR/$data_target") > /dev/null
+      container_tool run --rm --name "${mname}_worker_fix_data_perms" -v "$data_vol_name":/data "$MDL_SHELL_IMAGE" \
+         sh -c "\
+            (cd /data && rm -rf sessions trashdir temp localcache cache moodle-cron.log)
+            (cd /data && mkdir -p sessions trashdir temp localcache cache)
+            chown -R daemon:daemon /data
+            find /data -type d -print0 | xargs -0 chmod 700
+            find /data -type f -print0 | xargs -0 chmod 600
+         "
+   ) &
    pid_data=$!
    container_tool run --rm --name "${mname}_worker_cp_src" -v "$src_vol_name":/src -v "$temp_vol_name":/temp:ro "$MDL_SHELL_IMAGE" \
       sh -c "\
@@ -145,14 +161,17 @@ for mname in $mnames; do
    # Either fast database backup or a full SQL dump restore
    if [[ -n $dbfiles_target ]]; then
       # Fast database restore
-      echo "Restoring $ul$db_vol_name$norm volume..."
-      container_tool run --rm --name "${mname}_worker_tar_dbfiles" -v "$db_vol_name":/data -v "$MDL_BACKUP_DIR":/backup:Z,ro "$MDL_SHELL_IMAGE" \
-         sh -c "tar xf '/backup/$dbfiles_target' -C /data" &
+      echo "Restoring $ul$db_vol_name:$db_path$norm volume via fast database restore..."
+      (
+         compression_tool=$(calc_compression_tool "$dbfiles_target")
+         pipe_cmd=(cat) && [[ -n $compression_tool ]] && pipe_cmd=("$compression_tool" -d -c)
+         container_tool cp - "$db_container":"$db_path" < <("${pipe_cmd[@]}" "$MDL_BACKUP_DIR/$dbfiles_target") > /dev/null
+      ) &
       pid_db=$!
    elif [[ -n $db_target ]]; then
       # Start a MariaDB container to restore the database
       (
-         echo "Restoring $ul$db_vol_name$norm volume..."
+         echo "Restoring $ul$db_vol_name$norm volume via database dump..."
          sql_path="$(mktemp -d)/${mname}_backup.sql"
          if ! decompress "$MDL_BACKUP_DIR/$db_target" "$sql_path" -k > /dev/null; then
             # If decompression fails, it probably isn't compressed. Point at original file instead.

@@ -19,11 +19,18 @@ label=$default_label
 # Declarations
 source_host=
 source_type=
-compress_flag=
 ssh_args=
 container_tool=${MDL_CONTAINER_TOOL[*]}
 verbose=false
 dry_run=false
+
+# Functions
+function ssh_wrap() {
+   echo "${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}$1${source_host:+"\\\"\""}"
+}
+function eval_ssh_wrap() {
+   eval "$(ssh_wrap "$1")"
+}
 
 # Help
 display_help() {
@@ -140,8 +147,16 @@ shift $((OPTIND - 1))
 # Calculations
 #
 
+# Compression extension
+compress_ext=''
+case "$compress_arg" in
+   bzip2) compress_ext='.bz2' ;;
+   gzip) compress_ext='.gz' ;;
+   xz) compress_ext='.xz' ;;
+esac
+
 # Figure out the compression flag to send to tar
-[[ $compress_arg != none ]] && compress_flag="--$compress_arg"
+compression_tool=$(calc_compression_tool "$compress_ext")
 
 #
 # Pre-environment Validation
@@ -176,7 +191,6 @@ if [[ $modules =~ fastdb ]]; then
       exit 1
    fi
 fi
-
 
 # Check necessary utilities
 cmds=(tar "${MDL_CONTAINER_TOOL[0]}")
@@ -241,41 +255,38 @@ for mname in $mnames; do
       ping -c 1 "$source_host_server" &> /dev/null && source_host_reachable=true || source_host_reachable=false
    fi
 
-   # If "container", the container must be active in order to dump the database for the "db" module.
+   # If "container", the containers must be active in order to backup data for their module.
    source_db_container=''
+   source_moodle_container=''
    if $is_container; then
-      if [[ " $modules " == *" db "* ]]; then
-         source_db_container_cmd="
-            ${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-            $container_tool ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep mariadb | head -1
-            ${source_host:+"\\\"\""}
-         "
-         source_db_container=$(eval "$source_db_container_cmd")
+      if [[ " $modules " == *" db "* || $modules =~ fastdb ]]; then
+         # Find the database container name
+         source_db_container=$(eval_ssh_wrap "$container_tool ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep mariadb | head -1")
          [[ -z $source_db_container ]] && echo "${red}The database container cannot be found. Start the environment to perform a backup." >&2 && exit 1
+         # Determine db path if not provided (usually won't be for container mode)
+         if [[ -z $source_db_path && $modules =~ fastdb ]]; then
+            source_db_path=$(eval_ssh_wrap "$container_tool inspect '$source_db_container' | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains(\"db\"))) | .Destination'")
+            [[ -z $source_db_path ]] && echo "${red}Could not determine ${ul}db$rmul directory for $ul$mname$rmul!$norm" >&2 && exit 1
+         fi
       fi
-      if [[ $modules =~ data || $modules =~ src || $modules =~ fastdb ]]; then
-         vols_cmd="
-            ${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-            $container_tool volume ls -q --filter 'label=com.docker.compose.project=$mname'
-            ${source_host:+"\\\"\""}
-         "
-         vols=$(eval "$vols_cmd")
-         [[ $modules =~ data ]] && source_data_volume=$(grep data <<< "$vols")
-         [[ $modules =~ src ]] && source_src_volume=$(grep src <<< "$vols")
-         [[ $modules =~ fastdb ]] && source_db_volume=$(grep db <<< "$vols")
+      if [[ $modules =~ data || $modules =~ src ]]; then
+         # Find the moodle container name
+         source_moodle_container=$(eval_ssh_wrap "$container_tool ps -f 'label=com.docker.compose.project=$mname' --format '{{.Names}}' | grep moodle | head -1")
+         [[ -z $source_moodle_container ]] && echo "${red}The Moodle container cannot be found. Start the environment to perform a backup." >&2 && exit 1
+         # Determine src/data paths if not provided (usually won't be for container mode)
+         if [[ -z $source_src_path && $modules =~ src ]]; then
+            source_src_path=$(eval_ssh_wrap "$container_tool inspect '$source_moodle_container' | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains(\"src\"))) | .Destination'")
+            [[ -z $source_src_path ]] && echo "${red}Could not determine ${ul}src$rmul directory for $ul$mname$rmul!$norm" >&2 && exit 1
+         fi
+         if [[ -z $source_data_path && $modules =~ data ]]; then
+            source_data_path=$(eval_ssh_wrap "$container_tool inspect '$source_moodle_container' | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains(\"data\"))) | .Destination'")
+            [[ -z $source_data_path ]] && echo "${red}Could not determine ${ul}data$rmul directory for $ul$mname$rmul!$norm" >&2 && exit 1
+         fi
       fi
    fi
 
    # Password mask
    source_db_password_mask=${source_db_password//?/*}
-
-   # Compression extension
-   compress_ext=''
-   case "$compress_arg" in
-      bzip2) compress_ext='.bz2' ;;
-      gzip) compress_ext='.gz' ;;
-      xz) compress_ext='.xz' ;;
-   esac
 
    # Targets
    [[ $modules =~ data ]] && data_target="$MDL_BACKUP_DIR/${mname}_${label}_data.tar$compress_ext"
@@ -287,25 +298,24 @@ for mname in $mnames; do
    echo -e "$ul$bold$action_word $mname environment$norm"
    if $verbose; then
       echo
-                                       echo "$bold          Type:$norm $source_type"
-      [[ -n $source_host ]] &&         echo "$bold          Host:$norm $source_host ($($source_host_reachable && echo "${green}reachable" || echo "${red}unreachable!")$norm)"
-      [[ -n $source_src_path ]] &&     echo "$bold    'src' Path:$norm $source_src_path"
-      [[ -n $source_data_path ]] &&    echo "$bold   'data' Path:$norm $source_data_path"
-      [[ -n $source_src_volume ]] &&   echo "$bold  'src' Volume:$norm $source_src_volume"
-      [[ -n $source_data_volume ]] &&  echo "$bold 'data' Volume:$norm $source_data_volume"
-      [[ -n $source_db_volume ]] &&    echo "$bold   'db' Volume:$norm $source_db_volume"
-      [[ -n $source_db_container ]] && echo "$bold  DB Container:$norm $source_db_container"
-      [[ -n $source_db_name ]] &&      echo "$bold       DB Name:$norm $source_db_name"
-      [[ -n $source_db_username ]] &&  echo "$bold   DB Username:$norm $source_db_username"
-      [[ -n $source_db_password ]] &&  echo "$bold   DB Password:$norm $source_db_password_mask"
+                                           echo "$bold          Type:$norm $source_type"
+      [[ -n $source_host ]] &&             echo "$bold          Host:$norm $source_host ($($source_host_reachable && echo "${green}reachable" || echo "${red}unreachable!")$norm)"
+      [[ -n $source_moodle_container ]] && echo "$bold Mdl Container:$norm $source_moodle_container"
+      [[ -n $source_src_path ]] &&         echo "$bold    'src' Path:$norm $source_src_path"
+      [[ -n $source_data_path ]] &&        echo "$bold   'data' Path:$norm $source_data_path"
+      [[ -n $source_db_container ]] &&     echo "$bold  DB Container:$norm $source_db_container"
+      [[ -n $source_db_path ]] &&          echo "$bold     'db' Path:$norm $source_db_path"
+      [[ -n $source_db_name ]] &&          echo "$bold       DB Name:$norm $source_db_name"
+      [[ -n $source_db_username ]] &&      echo "$bold   DB Username:$norm $source_db_username"
+      [[ -n $source_db_password ]] &&      echo "$bold   DB Password:$norm $source_db_password_mask"
       echo
-      [[ -n $label ]] &&               echo "$bold         Label:$norm $label"
-                                       echo "$bold       Modules:$norm $modules"
-                                       echo "$bold      Compress:$norm $compress_arg"
-      [[ -n $src_target ]] &&          echo "$bold    'src' Path:$norm $src_target"
-      [[ -n $data_target ]] &&         echo "$bold   'data' Path:$norm $data_target"
-      [[ -n $db_target ]] &&           echo "$bold       DB Path:$norm $db_target"
-      [[ -n $fastdb_target ]] &&       echo "$bold  Fast DB Path:$norm $fastdb_target"
+      [[ -n $label ]] &&                   echo "$bold         Label:$norm $label"
+                                           echo "$bold       Modules:$norm $modules"
+                                           echo "$bold      Compress:$norm $compress_arg"
+      [[ -n $src_target ]] &&              echo "$bold    'src' Path:$norm $src_target"
+      [[ -n $data_target ]] &&             echo "$bold   'data' Path:$norm $data_target"
+      [[ -n $db_target ]] &&               echo "$bold       DB Path:$norm $db_target"
+      [[ -n $fastdb_target ]] &&           echo "$bold  Fast DB Path:$norm $fastdb_target"
       echo
    fi
 
@@ -315,43 +325,37 @@ for mname in $mnames; do
    fi
 
    # MODULE: data
-   # shellcheck disable=SC2034
-   data_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-   $is_container && data_cmd="$data_cmd $container_tool run --rm --name '${mname}_worker_bk_data' -v '$source_data_volume':/data $MDL_SHELL_IMAGE"
-   data_cmd="$data_cmd \
-      tar c $compress_flag \
-         --exclude='./trashdir' \
-         --exclude='./temp' \
-         --exclude='./sessions' \
-         --exclude='./localcache' \
-         --exclude='./cache' \
-         --exclude='./moodle-cron.log' \
-         -C $($is_container && echo /data || echo "$source_data_path") . \
-   "
-   data_cmd=$data_cmd${source_host:+"\\\"\""}
+   data_cmd=''
+   $is_container && data_cmd=$(ssh_wrap "$container_tool cp $source_moodle_container:$source_data_path/. -")
+   $is_container || data_cmd=$(ssh_wrap "tar c -C '$source_data_path' .")
+   if command -v bsdtar &>/dev/null; then
+      data_cmd="$data_cmd | bsdtar cf - \
+         --exclude localcache \
+         --exclude cache \
+         --exclude sessions \
+         --exclude temp \
+         --exclude trashdir \
+         --exclude moodle-cron.log \
+         @- \
+      "
+   else
+      echo "${yellow}Warning: Since ${ul}bsdtar$rmul isn't found, caches/logs will not be excluded from backup.$norm" >&2
+   fi
 
    # MODULE: src
+   src_cmd=''
+   $is_container && src_cmd=$(ssh_wrap "$container_tool cp $source_moodle_container:$source_src_path/. -")
    # shellcheck disable=SC2034
-   src_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-   $is_container && src_cmd="$src_cmd $container_tool run --rm --name '${mname}_worker_bk_src' -v '$source_src_volume':/src $MDL_SHELL_IMAGE"
-   src_cmd="$src_cmd \
-      tar c $compress_flag \
-         -C $($is_container && echo /src || echo "$source_src_path") . \
-   "
-   src_cmd=$src_cmd${source_host:+"\\\"\""}
+   $is_container || src_cmd=$(ssh_wrap "tar c -C '$source_src_path' .")
 
    # MODULE: fastdb
+   fastdb_cmd=''
    # shellcheck disable=SC2034
-   fastdb_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-   $is_container && fastdb_cmd="$fastdb_cmd $container_tool run --rm --name '${mname}_worker_bk_fastdb' -v '$source_db_volume':/db $MDL_SHELL_IMAGE"
-   $is_container && fastdb_cmd="$fastdb_cmd tar c $compress_flag -C /db ."
-   fastdb_cmd=$fastdb_cmd${source_host:+"\\\"\""}
+   $is_container && fastdb_cmd=$(ssh_wrap "$container_tool cp $source_db_container:$source_db_path/. -")
 
    # MODULE: db
-   # TODO: When piping to compression program, a failed status of mysqldump will be lost.
-   # shellcheck disable=SC2034
-   db_cmd=${source_host:+"ssh $ssh_args $source_host $source_sudo \"sh -l -c \\\""}
-   $is_container && db_cmd="$db_cmd $container_tool exec '$source_db_container'"
+   db_cmd=''
+   $is_container && db_cmd="$container_tool exec '$source_db_container'"
    db_cmd="$db_cmd \
       mysqldump \
          --user='$source_db_username' \
@@ -360,22 +364,21 @@ for mname in $mnames; do
          -C -Q -e --create-options \
          $source_db_name \
    "
-   db_cmd=$db_cmd${source_host:+"\\\"\""}
-   [[ $compress_arg != none ]] && db_cmd="$db_cmd | $compress_arg -cq9"
+   db_cmd=$(ssh_wrap "$db_cmd")
 
    # Actually EXECUTE the commands
    pids=()
+   $verbose && echo
    for t in $valid_modules; do
       if [[ " $modules " == *" $t "* ]]; then
-         targ_var=${t}_target; targ=${!targ_var}
-         cmd_var=${t}_cmd; cmd=${!cmd_var}
+         targ_var="${t}_target"; targ="${!targ_var}"
+         cmd_var="${t}_cmd"; cmd="${!cmd_var}"
+         [[ -n $compression_tool ]] && cmd="$cmd | $compression_tool -cq9"
          echo "$mname $t: $targ"
-         # In verbose mode, output the command, but mask the password and eliminate whitespace by echoing with word splitting.
-         # shellcheck disable=2086
-         $verbose && echo ${cmd//password=\'$source_db_password\'/password=\'$source_db_password_mask\'}
-         if $dry_run; then
-            echo -e "${red}Not executed. This is a dry run.$norm\n"
-         else
+         # In verbose mode, output the command, but mask password. Eliminate whitespace with `xargs`.
+         # Ref: https://stackoverflow.com/questions/369758/how-to-trim-whitespace-from-a-bash-variable
+         $verbose && echo "${bold}Command:$norm ${cmd//password=\'$source_db_password\'/password=\'$source_db_password_mask\'}" | xargs
+         if ! $dry_run; then
             cmd="$cmd > '$targ'"
             # Execute the command, and handle success/fail scenarios
             eval "$cmd" && success=true || success=false
@@ -384,13 +387,14 @@ for mname in $mnames; do
                rm "$targ"
                echo "Removed $(basename "$targ") because the $t backup failed." >&2
             fi
-         fi
-      fi &
-      pids+=($!)
+         fi &
+         pids+=($!)
+      fi
    done
 
    # TODO: It'd be nice if we check if any of the steps failed, and exit non-zero if so.
    wait "${pids[@]}"
+   $dry_run && echo -e "${red}Commands not executed. This is a dry run.$norm\n"
    echo "$action_word of $mname environment is complete!"
 
    # Unset environment variables
