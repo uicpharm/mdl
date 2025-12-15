@@ -14,7 +14,7 @@ services:
          - MARIADB_SKIP_TEST_DB=yes
       volumes:
          - /etc/localtime:/etc/localtime:ro
-         - db:/bitnami/mariadb
+         - db:/bitnami/mariadb/data
    moodle:
       image: $MOODLE_IMAGE
       privileged: true

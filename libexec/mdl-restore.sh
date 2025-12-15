@@ -186,7 +186,7 @@ for mname in $mnames; do
             -e MARIADB_DATABASE="${DB_NAME:-moodle}" \
             -e MARIADB_COLLATE=utf8mb4_unicode_ci \
             -e MARIADB_SKIP_TEST_DB=yes \
-            -v "$db_vol_name":/bitnami/mariadb \
+            -v "$db_vol_name":"$db_path" \
             -v "$sql_path":/docker-entrypoint-initdb.d/restore.sql:Z,ro \
             "$MARIADB_IMAGE" > /dev/null
          # MariaDB doesn't have a "run task and exit" mode, so we just wait until
@@ -206,6 +206,8 @@ for mname in $mnames; do
    container_tool volume rm -f "$temp_vol_name" > /dev/null
    wait $pid_data
    [[ -n $pid_db ]] && wait "$pid_db"
+   # Update config before destroying the stack so we know the data mount point
+   export_env_and_update_config "$mname"
    branchver="$branchver" "$scr_dir/mdl-stop.sh" "$mname" -q
 
    # Remove the local backup files when done, if they specified that option
@@ -215,9 +217,6 @@ for mname in $mnames; do
       [[ -n $db_target ]] && rm -fv "$MDL_BACKUP_DIR/$db_target"
       [[ -n $dbfiles_target ]] && rm -fv "$MDL_BACKUP_DIR/$dbfiles_target"
    fi
-
-   # Update Moodle config
-   export_env_and_update_config "$mname"
 
    echo "Done restoring $ul$mname$rmul from $backup_source_desc backup set with label $ul$label$norm."
 

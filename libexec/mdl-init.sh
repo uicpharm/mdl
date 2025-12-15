@@ -318,10 +318,12 @@ if [[ -n $mname ]]; then
             fi
          done
          echo
-         # Start the environment. Bitnami image will automatically bootstrap install. Wait to finish.
+         # Start the environment, automatically bootstrapping install. Wait to finish.
          branchver="$branchver" "$scr_dir/mdl-start.sh" "$mname" -q
          moodle_svc=$(container_tool ps --filter "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle)
          src_vol_name=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)
+         src_path=$(container_tool inspect "$moodle_svc" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("src"))) | .Destination')
+         data_path=$(container_tool inspect "$moodle_svc" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("data"))) | .Destination')
          # Do git install once standard install completes.
          function git_cmd() {
             container_tool run --rm -t --name "$mname-git-$(uuidgen)" -v "$src_vol_name":/git "$MDL_GIT_IMAGE" -c safe.directory=/git "$@"
@@ -359,17 +361,19 @@ if [[ -n $mname ]]; then
                }
                !skip { print }
             '
-            config_file=/bitnami/moodle/config.php
+            config_file=$src_path/config.php
             revised_config_file=$(mktemp)
             container_tool exec -it "$moodle_svc" awk "$awk_cmd" "$config_file" > "$revised_config_file"
             container_tool cp "$revised_config_file" "$moodle_svc":"$config_file"
-            # Bitnami image unfortunately does not install the git repo. So, we add git after the fact.
-            # This works fine since the Moodle repo branch will always be even with or slightly ahead of the Bitnami image.
-            targetbranch="MOODLE_${branchver}_STABLE"
-            git_cmd init -b main
-            git_cmd remote add origin https://github.com/moodle/moodle.git
-            git_cmd fetch -np origin "$targetbranch"
-            git_cmd checkout -f "$targetbranch"
+            # If image does not install the git repo, we add [g]it after the fact. This works fine since
+            # the Moodle repo branch will always be even with or slightly ahead of the image.
+            if ! git_cmd status &>/dev/null; then
+               targetbranch="MOODLE_${branchver}_STABLE"
+               git_cmd init -b main
+               git_cmd remote add origin https://github.com/moodle/moodle.git
+               git_cmd fetch -np origin "$targetbranch"
+               git_cmd checkout -f "$targetbranch"
+            fi
          ) > /dev/null &
          git_pid=$!
          yorn 'Do you want to optimize the git repository? It will save space but take more time.' 'n' && do_gc=true || do_gc=false
@@ -382,13 +386,13 @@ if [[ -n $mname ]]; then
          "$scr_dir/mdl-cli.sh" "$mname" upgrade --non-interactive
          # After upgrades, we need to fix permissions.
          # Ref: https://docs.moodle.org/4x/sv/Security_recommendations#Running_Moodle_on_a_dedicated_server
-         container_tool exec -it "${moodle_svc}" bash -c '
-            chown -R daemon:daemon /bitnami/moodle /bitnami/moodledata
-            find /bitnami/moodle -type d -print0 | xargs -0 chmod 755
-            find /bitnami/moodle -type f -print0 | xargs -0 chmod 644
-            find /bitnami/moodledata -type d -print0 | xargs -0 chmod 700
-            find /bitnami/moodledata -type f -print0 | xargs -0 chmod 600
-         '
+         container_tool exec -it "${moodle_svc}" bash -c "
+            chown -R daemon:daemon '$src_path' '$data_path'
+            find '$src_path' -type d -print0 | xargs -0 chmod 755
+            find '$src_path' -type f -print0 | xargs -0 chmod 644
+            find '$data_path' -type d -print0 | xargs -0 chmod 700
+            find '$data_path' -type f -print0 | xargs -0 chmod 600
+         "
       fi
       echo 🎉 Done!
    else
