@@ -6,8 +6,8 @@ display_help() {
    cat <<EOF
 Usage: $(script_name) <ENV>
 
-Looks at the version of a Moodle environment, based on its Git branch, and returns the
-full path of the ${ul}compose.yml${rmul} file that should be used.
+Looks at the version of a Moodle environment, based on its Git branch and custom configs,
+and returns the full path of the compose file that should be used.
 
 Options:
 -h, --help      Show this help message and exit.
@@ -18,6 +18,7 @@ EOF
 
 requires realpath
 
-# Right now, all configs can use the same `compose.yml` file, but if that changes,
-# this script will inform scripts which file to use based on Moodle version.
-realpath "$MDL_COMPOSE_DIR/compose.yml"
+# The default config for all versions is `default.yml` file. But if the environment config
+# provides a specific compose file, use that one instead. Try first relative to the
+# compose directory, then the absolute path.
+realpath "$MDL_COMPOSE_DIR/default.yml"

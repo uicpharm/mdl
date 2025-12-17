@@ -4,7 +4,7 @@
 . "${0%/*}/../lib/mdl-ui.sh"
 
 # Defaults
-compose_file_url=$MDL_BASE_URL/compose/compose.yml
+compose_file_url=$MDL_BASE_URL/compose/default.yml
 display_title=true
 force=false
 install_moodle=true
@@ -141,19 +141,19 @@ if $should_init_system; then
    install -d "$MDL_COMPOSE_DIR"
    if [[ -L $(command -v mdl) ]]; then
       # If in dev mode, link to the project compose file.
-      compose_file=$(realpath "$scr_dir/../compose/compose.yml")
+      compose_file=$(realpath "$scr_dir/../compose/default.yml")
       echo 'Since mdl is in developer mode, installing symlink to compose file at:'
       echo "$ul$compose_file$rmul"
-      ln -s -F "$compose_file" "$MDL_COMPOSE_DIR/compose.yml"
+      ln -s -F "$compose_file" "$MDL_COMPOSE_DIR/$(basename "$compose_file")"
    elif [[ -n $compose_file_url ]]; then
       # Download the provided compose file URL.
       echo 'Downloading compose file from:'
       echo "$ul$compose_file_url$rmul"
-      if ! curl -fsL "$compose_file_url" -o "$MDL_COMPOSE_DIR/compose.yml"; then
+      if ! curl -fsL "$compose_file_url" -o "$MDL_COMPOSE_DIR/$(basename "$compose_file_url")"; then
          echo "Failed to download compose file. Please check your internet connection or the URL." >&2
          exit 1
       fi
-   elif [[ -e $MDL_COMPOSE_DIR/compose.yml ]]; then
+   elif [[ -e $MDL_COMPOSE_DIR/default.yml ]]; then
       # A blank compose file URL was provided, but it's ok, because a file is present.
       echo 'Skipping compose file download. That is ok because one is already installed.'
    else

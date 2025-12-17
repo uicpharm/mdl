@@ -85,4 +85,4 @@ echo 🎉 The mdl CLI is installed!
 echo
 
 # Initialize the system
-mdl init --no-title -c "${MDL_BASE_URL/main/$branch}/compose/compose.yml"
+mdl init --no-title -c "${MDL_BASE_URL/main/$branch}/compose/default.yml"
