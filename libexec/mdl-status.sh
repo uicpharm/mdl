@@ -35,6 +35,7 @@ for mname in $mnames; do
    data_vol_name=$(grep data <<< "$vols")
    src_vol_name=$(grep src <<< "$vols")
    compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
+   [[ -z $compose_path ]] && continue
 
    $quiet || echo "${ul}Environment: $bold$mname$norm"
    # Status

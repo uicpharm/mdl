@@ -182,6 +182,9 @@ if [[ -n $mname ]]; then
       export_env "$mname"
       echo "Environment created at: $ul$MDL_ENVS_DIR/$mname$rmul"
       echo
+      echo "${ul}Compose Configuration$rmul"
+      COMPOSE_FILE=$(ask "Compose file" "${COMPOSE_FILE:-default.yml}")
+      echo
       echo "${ul}Database Configuration$rmul"
       DB_NAME=$(ask "Database name" "$DB_NAME")
       ROOT_PASSWORD=$(ask "Root password" "$ROOT_PASSWORD")
@@ -255,7 +258,7 @@ if [[ -n $mname ]]; then
       env_file="$MDL_ENVS_DIR/$mname/.env"
       # Find any custom variables in the .env file that are not in the default list.
       variables=(
-         ROOT_PASSWORD DB_NAME DB_USERNAME DB_PASSWORD MOODLE_HOST WWWROOT MOODLE_PORT
+         COMPOSE_FILE ROOT_PASSWORD DB_NAME DB_USERNAME DB_PASSWORD MOODLE_HOST WWWROOT MOODLE_PORT
          SOURCE_HOST SOURCE_DATA_PATH SOURCE_SRC_PATH SOURCE_DB_NAME SOURCE_DB_USERNAME SOURCE_DB_PASSWORD
          BOX_CLIENT_ID BOX_CLIENT_SECRET BOX_REDIRECT_URI BOX_FOLDER_ID
       )
