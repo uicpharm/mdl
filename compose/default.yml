@@ -2,7 +2,6 @@ name: $mname
 services:
    mariadb:
       image: $MARIADB_IMAGE
-      privileged: true
       restart: unless-stopped
       networks:
          - backend

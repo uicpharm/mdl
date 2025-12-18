@@ -179,7 +179,6 @@ for mname in $mnames; do
          fi
          db_runner="${mname}_worker_db_restore"
          container_tool run -d --rm --name "$db_runner" \
-            --privileged \
             -e MARIADB_ROOT_PASSWORD="${ROOT_PASSWORD:-password}" \
             -e MARIADB_USER="${DB_USERNAME:-moodleuser}" \
             -e MARIADB_PASSWORD="${DB_PASSWORD:-password}" \
