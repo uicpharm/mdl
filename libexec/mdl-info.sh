@@ -92,7 +92,7 @@ backup_status=true && [[ ! -d "$MDL_BACKUP_DIR" ]] && ok=false && backup_status=
 compose_status=true && [[ ! -d "$MDL_COMPOSE_DIR" ]] && ok=false && compose_status=false
 container_tool_status=true && [[ -z "$("${MDL_CONTAINER_TOOL[0]}" --version 2> /dev/null)" ]] && ok=false && container_tool_status=false
 compose_tool_status=true && [[ -z "$("${MDL_COMPOSE_TOOL[0]}" --version 2> /dev/null)" ]] && ok=false && compose_tool_status=false
-mdl_path=$(which mdl)
+mdl_path=$(command -v mdl)
 mdl_realpath=$(realpath "$mdl_path")
 [[ -L $mdl_path ]] && mdl_status="in dev mode at $ul$mdl_realpath$rmul" || mdl_status="at $ul$mdl_path$rmul"
 
@@ -166,12 +166,12 @@ for mname in $mnames; do
    # ENVIRONMENT INFORMATION
    fields=(
       MOODLE_HOST WWWROOT MOODLE_PORT \
-      MOODLE_IMAGE MARIADB_IMAGE \
+      MOODLE_IMAGE MARIADB_IMAGE COMPOSE_FILE \
       DB_TYPE DB_HOST DATA_ROOT DB_NAME ROOT_PASSWORD DB_USERNAME DB_PASSWORD \
       SOURCE_HOST SOURCE_DATA_PATH SOURCE_SRC_PATH SOURCE_DB_NAME SOURCE_DB_USERNAME SOURCE_DB_PASSWORD \
       BOX_CLIENT_ID BOX_CLIENT_SECRET BOX_REDIRECT_URI BOX_FOLDER_ID \
-      mname running env_path custom_path db_vol_name data_vol_name src_vol_name \
-      env_status custom_status db_status data_status src_status
+      mname running env_path compose_path custom_path db_vol_name data_vol_name src_vol_name \
+      env_status compose_path_status custom_status db_status data_status src_status
    )
    # Standard configs
    export_env "$mname"
@@ -186,6 +186,7 @@ for mname in $mnames; do
    # Additional calculated fields
    . "$scr_dir/mdl-calc-images.sh" "$mname"
    env_path="$MDL_ENVS_DIR/$mname/.env"
+   compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname" 2>/dev/null)
    custom_path="$MDL_ENVS_DIR/$mname/custom-config.sh"
    vols=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname")
    db_vol_name=$(grep db <<< "$vols")
@@ -194,6 +195,7 @@ for mname in $mnames; do
    running=false && [[ -n $(container_tool ps -q -f name="$mname") ]] && running=true
    running_string="${red}not running$norm" && $running && running_string="${green}running$norm"
    env_status=false && [ -f "$env_path" ] && env_status=true
+   compose_path_status=false && [ -n "$compose_path" ] && compose_path_status=true
    custom_status=false && [ -f "$custom_path" ] && custom_status=true
    db_status=false && [ -n "$db_vol_name" ] && db_status=true
    data_status=false && [ -n "$data_vol_name" ] && data_status=true
@@ -219,6 +221,7 @@ for mname in $mnames; do
       echo
       pretty_line 'Paths and Volumes'
       pretty_line 'Environment file' "$env_path" "$env_status"
+      pretty_line 'Compose file' "${compose_path:-$COMPOSE_FILE}" "$compose_path_status"
       pretty_line 'Custom config file' "$custom_path" "$custom_status"
       pretty_line 'Database volume' "${db_vol_name:-${red}missing$norm}" "$db_status"
       pretty_line 'Data volume' "${data_vol_name:-${red}missing$norm}" "$data_status"

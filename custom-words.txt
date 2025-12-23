@@ -8,6 +8,7 @@ behaviour
 bitnamilegacy
 booktool
 branchver
+bsdtar
 cachelock
 Caddyfile
 calendartype
@@ -52,7 +53,10 @@ moodledata
 moodleuser
 mygr
 mymoodle
+pbzip
 pids
+pigz
+pixz
 plib
 profilefield
 purgecaches

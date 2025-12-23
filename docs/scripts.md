@@ -30,14 +30,6 @@ are listed at the bottom to make this reference easier to read.
 
 <pre>{{ man['mdl-exec-sql'] }}</pre>
 
-### `mdl fast-db-backup`
-
-<pre>{{ man['mdl-fast-db-backup'] }}</pre>
-
-### `mdl fast-db-restore`
-
-<pre>{{ man['mdl-fast-db-restore'] }}</pre>
-
 ### `mdl info`
 
 <pre>{{ man['mdl-info'] }}</pre>

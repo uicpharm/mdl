@@ -24,6 +24,7 @@ containers="$(container_tool ps -q -f name="$mname" 2> /dev/null)"
 [ -z "$containers" ] && echo "The $mname stack is not running." && exit 1
 
 compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
+[[ -z $compose_path ]] && exit 1
 . "$scr_dir/mdl-calc-images.sh" "$mname"
 export_env_and_update_config "$mname"
 compose_tool -p "$mname" -f "$compose_path" logs "${@:2}"

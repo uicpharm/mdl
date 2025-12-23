@@ -122,6 +122,8 @@ for mname in $mnames; do
    # Process each zip file
    for zip_file in "${zip_files[@]}"; do
       zip_filename=$(basename "$zip_file")
+      # Clean up temp dirs from previous iteration, if applicable
+      rm -Rf "$temp_unzipped" "$temp_downloaded"
       # If the zip file is a URL, download it first
       if [[ $zip_file =~ ^https?:// ]]; then
          mkdir -p "$temp_downloaded"
@@ -133,18 +135,19 @@ for mname in $mnames; do
       # Unzip the plugin, and copy its contents to its final destination
       mkdir -p "$temp_unzipped"
       unzip -o -qq -d "$temp_unzipped" "$zip_file" || { echo "Failed to unzip $zip_file" >&2; exit 1; }
-      # We use the directory inside the unzipped archive to determine plugin type and name. There should
-      # only be one directory, but we put safeguards in place to make sure.
-      # Example: block_my_great_plugin -> type=block, name=my_great_plugin
-      pkg_name=$(find "$temp_unzipped" -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 basename | head -n1)
-      type=${pkg_name%%_*}
-      name=${pkg_name#*_}
+      # We inspect version.php to get the component name, and from there we can determine type and name.
+      # Example: `$plugin->component = 'local_my_plugin';` -> `local_my_plugin` -> type=local, name=my_plugin
+      plugin_dir=$(find "$temp_unzipped" -maxdepth 1 -mindepth 1 -type d -print0 | xargs -0 basename | head -n1)
+      version_file="$temp_unzipped/$plugin_dir/version.php"
+      [ ! -f "$version_file" ] && echo "${red}Could not find version.php in plugin $zip_filename." >&2 && continue
+      component_full_name=$(grep -E "\\\$plugin->component[[:space:]]*=" "$version_file" | sed -E "s/.*\\\$plugin->component[[:space:]]*=[[:space:]]*'([^']+)'.*/\1/")
+      [ -z "$component_full_name" ] && echo "${red}Could not determine component name from version file for $zip_filename." >&2 && continue
+      type=${component_full_name%%_*}
+      name=${component_full_name#*_}
       dest="$(plugin_type_path "$type")/$name"
       echo "Installing $type plugin $name to $ul$dest$norm."
       mkdir -p "$temp_moodle/$dest"
-      ( shopt -s dotglob && cp -R "$temp_unzipped/$pkg_name"/* "$temp_moodle/$dest" )
-      # Clean up
-      rm -Rf "$temp_unzipped" "$temp_downloaded"
+      ( shopt -s dotglob && cp -R "$temp_unzipped/$plugin_dir"/* "$temp_moodle/$dest" )
    done
    # Copy all final work into the container
    while IFS= read -r -d '' dir; do

@@ -4,7 +4,7 @@
 . "${0%/*}/../lib/mdl-ui.sh"
 
 # Defaults
-compose_file_url=$MDL_BASE_URL/compose/compose.yml
+compose_file_url=$MDL_BASE_URL/compose/default.yml
 display_title=true
 force=false
 install_moodle=true
@@ -139,21 +139,21 @@ if $should_init_system; then
    install -d "$MDL_ENVS_DIR"
    install -d "$MDL_BACKUP_DIR"
    install -d "$MDL_COMPOSE_DIR"
-   if [[ -L $(which mdl) ]]; then
+   if [[ -L $(command -v mdl) ]]; then
       # If in dev mode, link to the project compose file.
-      compose_file=$(realpath "$scr_dir/../compose/compose.yml")
+      compose_file=$(realpath "$scr_dir/../compose/default.yml")
       echo 'Since mdl is in developer mode, installing symlink to compose file at:'
       echo "$ul$compose_file$rmul"
-      ln -s -F "$compose_file" "$MDL_COMPOSE_DIR/compose.yml"
+      ln -s -F "$compose_file" "$MDL_COMPOSE_DIR/$(basename "$compose_file")"
    elif [[ -n $compose_file_url ]]; then
       # Download the provided compose file URL.
       echo 'Downloading compose file from:'
       echo "$ul$compose_file_url$rmul"
-      if ! curl -fsL "$compose_file_url" -o "$MDL_COMPOSE_DIR/compose.yml"; then
+      if ! curl -fsL "$compose_file_url" -o "$MDL_COMPOSE_DIR/$(basename "$compose_file_url")"; then
          echo "Failed to download compose file. Please check your internet connection or the URL." >&2
          exit 1
       fi
-   elif [[ -e $MDL_COMPOSE_DIR/compose.yml ]]; then
+   elif [[ -e $MDL_COMPOSE_DIR/default.yml ]]; then
       # A blank compose file URL was provided, but it's ok, because a file is present.
       echo 'Skipping compose file download. That is ok because one is already installed.'
    else
@@ -169,11 +169,21 @@ elif [[ -z $mname ]]; then
 fi
 
 if [[ -n $mname ]]; then
+   # Validate mname. Abort if we received an invalid name.
+   if ! [[ $mname =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+      echo "${red}The environment name $ul$mname$rmul is not valid.$norm" >&2
+      echo "${yellow}Names can only contain lowercase alphanumeric characters, hyphens, and underscores,$norm" >&2
+      echo "${yellow}and must start with a letter or number.$norm" >&2
+      exit 1
+   fi
    if [[ ! -d "$MDL_ENVS_DIR/$mname" ]] || $force; then
       echo "Creating environment: $ul$mname$rmul"
       mkdir -p "$MDL_ENVS_DIR/$mname"
       export_env "$mname"
       echo "Environment created at: $ul$MDL_ENVS_DIR/$mname$rmul"
+      echo
+      echo "${ul}Compose Configuration$rmul"
+      COMPOSE_FILE=$(ask "Compose file" "${COMPOSE_FILE:-default.yml}")
       echo
       echo "${ul}Database Configuration$rmul"
       DB_NAME=$(ask "Database name" "$DB_NAME")
@@ -248,7 +258,7 @@ if [[ -n $mname ]]; then
       env_file="$MDL_ENVS_DIR/$mname/.env"
       # Find any custom variables in the .env file that are not in the default list.
       variables=(
-         ROOT_PASSWORD DB_NAME DB_USERNAME DB_PASSWORD MOODLE_HOST WWWROOT MOODLE_PORT
+         COMPOSE_FILE ROOT_PASSWORD DB_NAME DB_USERNAME DB_PASSWORD MOODLE_HOST WWWROOT MOODLE_PORT
          SOURCE_HOST SOURCE_DATA_PATH SOURCE_SRC_PATH SOURCE_DB_NAME SOURCE_DB_USERNAME SOURCE_DB_PASSWORD
          BOX_CLIENT_ID BOX_CLIENT_SECRET BOX_REDIRECT_URI BOX_FOLDER_ID
       )
@@ -299,7 +309,7 @@ if [[ -n $mname ]]; then
          for ver_string in "${versions[@]}"; do
             IFS=' ' read -ra var_array <<< "$ver_string"
             branch_array+=("${var_array[0]}")
-            moodle_array+=("$(echo "${var_array[1]}" | cut -d'.' -f1-2)")
+            moodle_array+=("$(echo "${var_array[1]}" | cut -d':' -f2 | cut -d'.' -f1-2)")
          done
          PS3="Select the version to install: "
          select moodle_ver in "${moodle_array[@]}"; do
@@ -311,10 +321,12 @@ if [[ -n $mname ]]; then
             fi
          done
          echo
-         # Start the environment. Bitnami image will automatically bootstrap install. Wait to finish.
+         # Start the environment, automatically bootstrapping install. Wait to finish.
          branchver="$branchver" "$scr_dir/mdl-start.sh" "$mname" -q
          moodle_svc=$(container_tool ps --filter "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle)
          src_vol_name=$(container_tool volume ls -q --filter "label=com.docker.compose.project=$mname" | grep src)
+         src_path=$(container_tool inspect "$moodle_svc" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("src"))) | .Destination')
+         data_path=$(container_tool inspect "$moodle_svc" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("data"))) | .Destination')
          # Do git install once standard install completes.
          function git_cmd() {
             container_tool run --rm -t --name "$mname-git-$(uuidgen)" -v "$src_vol_name":/git "$MDL_GIT_IMAGE" -c safe.directory=/git "$@"
@@ -352,17 +364,19 @@ if [[ -n $mname ]]; then
                }
                !skip { print }
             '
-            config_file=/bitnami/moodle/config.php
+            config_file=$src_path/config.php
             revised_config_file=$(mktemp)
             container_tool exec -it "$moodle_svc" awk "$awk_cmd" "$config_file" > "$revised_config_file"
             container_tool cp "$revised_config_file" "$moodle_svc":"$config_file"
-            # Bitnami image unfortunately does not install the git repo. So, we add git after the fact.
-            # This works fine since the Moodle repo branch will always be even with or slightly ahead of the Bitnami image.
-            targetbranch="MOODLE_${branchver}_STABLE"
-            git_cmd init -b main
-            git_cmd remote add origin https://github.com/moodle/moodle.git
-            git_cmd fetch -np origin "$targetbranch"
-            git_cmd checkout -f "$targetbranch"
+            # If image does not install the git repo, we add [g]it after the fact. This works fine since
+            # the Moodle repo branch will always be even with or slightly ahead of the image.
+            if ! git_cmd status &>/dev/null; then
+               targetbranch="MOODLE_${branchver}_STABLE"
+               git_cmd init -b main
+               git_cmd remote add origin https://github.com/moodle/moodle.git
+               git_cmd fetch -np origin "$targetbranch"
+               git_cmd checkout -f "$targetbranch"
+            fi
          ) > /dev/null &
          git_pid=$!
          yorn 'Do you want to optimize the git repository? It will save space but take more time.' 'n' && do_gc=true || do_gc=false
@@ -375,13 +389,13 @@ if [[ -n $mname ]]; then
          "$scr_dir/mdl-cli.sh" "$mname" upgrade --non-interactive
          # After upgrades, we need to fix permissions.
          # Ref: https://docs.moodle.org/4x/sv/Security_recommendations#Running_Moodle_on_a_dedicated_server
-         container_tool exec -it "${moodle_svc}" bash -c '
-            chown -R daemon:daemon /bitnami/moodle /bitnami/moodledata
-            find /bitnami/moodle -type d -print0 | xargs -0 chmod 755
-            find /bitnami/moodle -type f -print0 | xargs -0 chmod 644
-            find /bitnami/moodledata -type d -print0 | xargs -0 chmod 700
-            find /bitnami/moodledata -type f -print0 | xargs -0 chmod 600
-         '
+         container_tool exec -it "${moodle_svc}" bash -c "
+            chown -R daemon:daemon '$src_path' '$data_path'
+            find '$src_path' -type d -print0 | xargs -0 chmod 755
+            find '$src_path' -type f -print0 | xargs -0 chmod 644
+            find '$data_path' -type d -print0 | xargs -0 chmod 700
+            find '$data_path' -type f -print0 | xargs -0 chmod 600
+         "
       fi
       echo 🎉 Done!
    else

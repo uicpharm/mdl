@@ -32,6 +32,7 @@ for mname in $mnames; do
    fi
 
    compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
+   [[ -z $compose_path ]] && continue
 
    $quiet || echo "Stopping $mname..."
    . "$scr_dir/mdl-calc-images.sh" "$mname"

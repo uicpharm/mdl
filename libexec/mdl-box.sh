@@ -145,7 +145,7 @@ for mname in $mnames; do
       url="https://account.box.com/api/oauth2/authorize?response_type=code&client_id=$BOX_CLIENT_ID&redirect_uri=$BOX_REDIRECT_URI"
       echo "Go to the following link to get the authorization code:"
       echo "$ul$url$norm"
-      [[ -n $(which open 2>/dev/null) ]] && open "$url"
+      command -v open &>/dev/null && open "$url"
       read -r -p "Authorization code: " auth_code
       if [[ -z $auth_code ]]; then
          echo "You entered a blank authorization code. Aborting."

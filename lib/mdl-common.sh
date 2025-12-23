@@ -55,7 +55,7 @@ function container_tool() { "${MDL_CONTAINER_TOOL[@]}" "$@"; }
 function requires() {
    local ok=true
    for cmd in "$@"; do
-      if [[ -z $(which "$cmd" 2>/dev/null) ]]; then
+      if ! command -v "$cmd" &>/dev/null; then
          echo "${red}${bold}This command requires $ul$cmd$rmul to work.$norm" >&2
          ok=false
       elif [[ $cmd =~ docker || $cmd =~ podman ]]; then
@@ -87,8 +87,18 @@ function support_long_options() {
    fi
 }
 
+function calc_compression_tool() {
+   local ext=${1##*.}
+   local cmd
+   [[ $ext == bz2 ]] && cmd=bzip2 && command -v pbzip2 &>/dev/null && cmd=pbzip2
+   [[ $ext == gz ]] && cmd=gzip && command -v pigz &>/dev/null && cmd=pigz
+   [[ $ext == xz ]] && cmd=xz && command -v pixz &>/dev/null && cmd=pixz
+   echo "$cmd"
+}
+
 # Receives file path and decompresses it. Can detect bzip2, gzip and xz files. If none of
-# those extensions match the filename, it throws an error. After successful decompression,
+# those extensions match the filename, it throws an error. It will always try to use the
+# parallel processing version of the command if available. After successful decompression,
 # the original file is deleted unless you specify `--keep`.
 #
 # Parameters:
@@ -99,14 +109,11 @@ function decompress() {
    local file_path=$1
    local out=$2
    local ext=${file_path##*.}
-   local cmd
+   local cmd=$(calc_compression_tool "$ext")
    # Check options
    [[ $* =~ -k || $* =~ --keep ]] && keep=true || keep=false
    # File path is required
    [[ -z $file_path ]] && return 1
-   [[ $ext == bz2 ]] && cmd=bzip2
-   [[ $ext == gz ]] && cmd=gzip
-   [[ $ext == xz ]] && cmd=xz
    if [[ -n $cmd ]]; then
       # If they didn't provide an explicit output path, use file path sans extension
       [[ -z $out ]] && out=${file_path%".$ext"}
@@ -120,6 +127,21 @@ function decompress() {
    fi
    # If we got here, the file is not compressed. Throw an error.
    return 2
+}
+
+# Function that uses awk to safely extract label from filename. Expects to receive
+# filename from pipe, such as: `echo $mname | extract_label <MNAME> <TYPE>`
+function extract_label() {
+   cat | awk -v type="$2" -v mname="$1" '
+      # Filter essentially looks for: /_<TYPE>\./ for example type "src" matches "_src."
+      /_'"$2"'\./ {
+         # Remove leading "<MNAME>_", so mname "moodle" matches "moodle_" at start of name.
+         sub("^" mname "_", "");
+         # Remove ending "_<TYPE>.*", so type "src" matches "_src.tar", "_src.tar.bz2", etc at end of name.
+         sub("_" type "\\..*$", "");
+         print $0
+      }
+   '
 }
 
 # Used to clear all known vars to proactively avoid data leaks.
@@ -149,22 +171,32 @@ function export_env() {
    export mname=$1
 }
 
-# Updates config.php with the environment variables.
+# Updates config.php with the environment variables. Assumes that export_env has already been run.
 # Usage: update_config <ENV>
 function update_config() {
    local -r env_dir="$MDL_ENVS_DIR/$1"
-   local -r env_config_file="$env_dir/src/config.php"
+
+   # Get the Moodle container and its mount paths for this environment
+   local -r container="$(container_tool ps -a -f "label=com.docker.compose.project=$1" --format '{{.Names}}' | grep moodle | head -1)"
+   local -r data_path=${container:+$(container_tool inspect "$container" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("data"))) | .Destination')}
 
    # Get desired wwwroot value
    if [ -z "$WWWROOT" ]; then
-      local -r defaultwwwroot="$(grep -o -E "CFG->wwwroot\s*=\s*'(.*)';" "$env_config_file" | cut -d"'" -f2)"
+      local defaultwwwroot=''
+      # Determine default wwwroot from existing config if possible (container must be running)
+      if [[ -n $container ]]; then
+         local -r src_path=${container:+$(container_tool inspect "$container" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("src"))) | .Destination')}
+         if [[ -n $src_path ]]; then
+            defaultwwwroot=$(container_tool exec -t "$container" php -r "define('CLI_SCRIPT', true); require '$src_path/config.php'; echo \$CFG->wwwroot;")
+         fi
+      fi
       local altwwwroot1="http://$HOSTNAME"
       [ "$defaultwwwroot" = "$altwwwroot1" ] && altwwwroot1=''
       local altwwwroot2="http://$MOODLE_HOST"
       [ "$defaultwwwroot" = "$altwwwroot2" ] && altwwwroot2=''
       echo 'You can avoid this prompt by setting WWWROOT in your .env file.'
       PS3="Select a desired wwwroot value or type your own: "
-      select WWWROOT in "$defaultwwwroot" $altwwwroot1 $altwwwroot2; do
+      select WWWROOT in $defaultwwwroot $altwwwroot1 $altwwwroot2; do
          WWWROOT="${WWWROOT:-$REPLY}"
          break
       done
@@ -195,9 +227,11 @@ function update_config() {
             replace_config_value dbname "$DB_NAME" |
             replace_config_value dbuser "$DB_USERNAME" |
             replace_config_value dbpass "$DB_PASSWORD" |
-            replace_config_value wwwroot "$WWWROOT" |
-            replace_config_value dataroot "${DATA_ROOT:-/bitnami/moodledata}"
+            replace_config_value wwwroot "$WWWROOT"
          )
+         if [[ -n "$DATA_ROOT" || -n "$data_path" ]]; then
+            config_content=$(replace_config_value "$config_content" dataroot "${DATA_ROOT:-$data_path}")
+         fi
          # Run custom updates if provided
          custom_script="$env_dir/custom-config.sh"
          [[ -f "$custom_script" ]] && config_content=$(. "$custom_script" "$config_content")
@@ -211,6 +245,7 @@ EOF
    container_tool run --rm -t --name "${1}_worker_update_config" \
       -v "$env_dir":/env:Z,ro \
       -v "${1}_src":/src \
+      -e data_path="$data_path" \
       "$MDL_SHELL_IMAGE" sh -c "$cmd"
 }
 

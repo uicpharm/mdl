@@ -43,6 +43,7 @@ done
 for mname in $mnames; do
 
    compose_path=$("$scr_dir/mdl-calc-compose-path.sh" "$mname")
+   [[ -z $compose_path ]] && continue
    $quiet || echo "Starting $mname..."
    . "$scr_dir/mdl-calc-images.sh" "$mname"
    export_env_and_update_config "$mname"

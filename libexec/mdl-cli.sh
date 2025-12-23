@@ -53,19 +53,21 @@ mnames=$("$scr_dir"/mdl-select-env.sh "$1")
 
 for mname in $mnames; do
 
-   # Get the Moodle container for this environment
+   # Get the Moodle container and base directory for this environment
    container="$(container_tool ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep moodle | head -1)"
    [[ -z $container ]] && echo "${red}Could not find a container running Moodle for $ul$mname$rmul!$norm" >&2 && exit 1
+   base_dir=$(container_tool inspect "$container" | jq -r '.[] .Mounts[] | select(.Name != null and (.Name | contains("src"))) | .Destination')
+   [[ -z $base_dir ]] && echo "${red}Could not determine Moodle base directory for $ul$mname$rmul!$norm" >&2 && exit 1
 
    cmd="$2"
    # If they did not provide a cmd, list the available commands
    if [[ -z $cmd ]]; then
       echo "${bold}${ul}Available Commands$norm"
-      container_tool exec -t "$container" find /bitnami/moodle/admin/cli -maxdepth 1 -type f -exec basename {} .php \; | sort | sed 's/^/  - /'
+      container_tool exec -t "$container" find "$base_dir/admin/cli" -maxdepth 1 -type f -exec basename {} .php \; | sort | sed 's/^/  - /'
       exit
    fi
 
    # Run the command, passing any additional arguments they passed on to this script
-   container_tool exec $paramI -t "$container" php "/bitnami/moodle/admin/cli/$cmd.php" "${@:3}"
+   container_tool exec $paramI -t "$container" php "$base_dir/admin/cli/$cmd.php" "${@:3}"
 
 done

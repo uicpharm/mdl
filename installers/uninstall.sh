@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Check that `mdl` is installed
-if [[ -z $(which mdl) ]]; then
+if ! command -v mdl &>/dev/null; then
    echo "Could not find mdl. Are you sure it is installed?" >&2
    exit 1
 fi
@@ -12,10 +12,10 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # Determine paths and load common functions
-base=$(realpath "$(dirname "$(realpath "$(which mdl)")")/..")
+base=$(realpath "$(dirname "$(realpath "$(command -v mdl)")")/..")
 # Explicitly set scr_dir in case we're running from a curl pipe
 scr_dir="$base/libexec"
-[[ -L $(which mdl) ]] && linked=true || linked=false
+[[ -L $(command -v mdl) ]] && linked=true || linked=false
 # shellcheck source=../lib/mdl-common.sh
 [[ -f $base/lib/mdl-common.sh ]] && . "$base/lib/mdl-common.sh"
 # shellcheck source=../lib/mdl-ui.sh
@@ -31,7 +31,7 @@ if $linked; then
    echo 'It appears you installed mdl in developer mode, which just installs a symlink to'
    echo 'the project in your path.'
    echo
-   yorn "Do you want to remove the symlink?" 'y' && sudo rm "$(which mdl)"
+   yorn "Do you want to remove the symlink?" 'y' && sudo rm "$(command -v mdl)"
 else
    yorn "Remove the mdl executable and its associated files?" 'y' && \
    sudo rm -fv "$base"/bin/mdl "$base"/lib/mdl-*.sh "$base"/libexec/mdl-*.sh \
