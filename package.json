@@ -29,9 +29,9 @@
    },
    "homepage": "https://github.com/uicpharm/moodle#readme",
    "devDependencies": {
-      "@uicpharm/standardization": "github:uicpharm/standardization#0.4.3",
-      "@uicpharm/vitepress-theme": "github:uicpharm/vitepress-theme#1.0.1",
+      "@uicpharm/standardization": "github:uicpharm/standardization#0.5.0",
+      "@uicpharm/vitepress-theme": "github:uicpharm/vitepress-theme#1.0.2",
       "strip-ansi": "7.1.0",
-      "vite-plugin-static-copy": "3.1.0"
+      "vite-plugin-static-copy": "4.1.0"
    }
 }
