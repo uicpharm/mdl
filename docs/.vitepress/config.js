@@ -39,7 +39,11 @@ export default defineConfig({
       },
       plugins: [
          viteStaticCopy({
-            targets: [ { src: '../node_modules/@uicpharm/vitepress-theme/public/uic-logo.svg', dest: '.' } ],
+            targets: [ {
+               src: '../node_modules/@uicpharm/vitepress-theme/public/uic-logo.svg',
+               dest: '.',
+               rename: { stripBase: true },
+            } ],
          }),
       ],
    },

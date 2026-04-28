@@ -10,7 +10,7 @@
       "dev:docs": "vitepress dev docs",
       "test": "npm run check-node",
       "standards": "npm run shellcheck && npm run eslint && npm run yamllint && npm run markdownlint && npm run cspell && npm run commitlint",
-      "check-node": "check-node-version --node 20.12.2 --npm 10.5.0",
+      "check-node": "check-node-version --node $(cat .nvmrc) --npm 11.11.0 --print",
       "commitlint": "commitlint --from 35691b683b",
       "cspell": "cspell . --show-suggestions --no-progress",
       "eslint": "eslint .",
@@ -29,9 +29,9 @@
    },
    "homepage": "https://github.com/uicpharm/moodle#readme",
    "devDependencies": {
-      "@uicpharm/standardization": "github:uicpharm/standardization#0.4.3",
-      "@uicpharm/vitepress-theme": "github:uicpharm/vitepress-theme#1.0.1",
+      "@uicpharm/standardization": "github:uicpharm/standardization#0.5.0",
+      "@uicpharm/vitepress-theme": "github:uicpharm/vitepress-theme#1.0.2",
       "strip-ansi": "7.1.0",
-      "vite-plugin-static-copy": "3.1.0"
+      "vite-plugin-static-copy": "4.1.0"
    }
 }
