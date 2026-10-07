@@ -91,6 +91,12 @@ for mname in $mnames; do
          find /src -type f -print0 | xargs -0 chmod 644
       "
 
+   # Use the Moodle image to run composer install after upgrade
+   . "$scr_dir/mdl-calc-images.sh" "$mname"
+   container_tool run --rm --name "${mname}_worker_composer" \
+      -v "$src_vol_name":/src -w /src "$MOODLE_IMAGE" \
+      composer install --no-dev --classmap-authoritative
+
    echo '🎉 Done!'
 
 done
