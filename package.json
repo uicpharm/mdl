@@ -1,6 +1,6 @@
 {
    "name": "mdl",
-   "version": "1.0.0",
+   "version": "1.0.1",
    "description": "Tooling for our implementation of Moodle.",
    "type": "module",
    "scripts": {

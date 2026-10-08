@@ -114,10 +114,12 @@ for mname in $mnames; do
    [[ -z $base_dir ]] && echo "${red}Could not determine Moodle base directory for $ul$mname$rmul!$norm" >&2 && exit 1
 
    # Prepare a temporary directory to do work
+   branchver=$("$scr_dir/mdl-moodle-version.sh" "$mname")
    tempdir=$(mktemp -d)
    temp_unzipped=$tempdir/unzipped
    temp_downloaded=$tempdir/downloaded
-   temp_moodle=$tempdir$base_dir
+   pub_dir=$base_dir && (( branchver >= 501 )) && pub_dir=$pub_dir/public
+   temp_moodle=$tempdir$pub_dir
 
    # Process each zip file
    for zip_file in "${zip_files[@]}"; do
@@ -151,7 +153,7 @@ for mname in $mnames; do
    done
    # Copy all final work into the container
    while IFS= read -r -d '' dir; do
-      container_tool cp "$dir" "$container:$base_dir" 1> /dev/null
+      container_tool cp "$dir" "$container:$pub_dir" 1> /dev/null
    done < <(find "$temp_moodle" -mindepth 1 -maxdepth 1 -type d -print0)
 
    # Clean up

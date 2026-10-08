@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ver=1.0.0
+ver=1.0.1
 sub_cmd="${1/\.sh/}"
 scr_dir=$(realpath "$(dirname "$(readlink -f "$0")")/../libexec")
 sub_cmd_path="$scr_dir/mdl-$sub_cmd.sh"
