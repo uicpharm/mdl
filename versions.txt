@@ -10,3 +10,5 @@ Branch  Moodle                                  MariaDB
 405     docker.io/bitnamilegacy/moodle:4.5.4    docker.io/mariadb:10.11.19
 500     docker.io/bitnamilegacy/moodle:5.0.2    docker.io/mariadb:10.11.19
 501     ghcr.io/uicpharm/moodle:5.1             docker.io/mariadb:10.11.19
+502     ghcr.io/uicpharm/moodle:5.2             docker.io/mariadb:11.4.13
+503     ghcr.io/uicpharm/moodle:5.3             docker.io/mariadb:11.4.13
