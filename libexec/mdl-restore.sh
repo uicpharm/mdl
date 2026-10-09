@@ -184,14 +184,13 @@ for mname in $mnames; do
             -e MARIADB_PASSWORD="${DB_PASSWORD:-password}" \
             -e MARIADB_DATABASE="${DB_NAME:-moodle}" \
             -e MARIADB_COLLATE=utf8mb4_unicode_ci \
-            -e MARIADB_SKIP_TEST_DB=yes \
             -v "$db_vol_name":"$db_path" \
             -v "$sql_path":/docker-entrypoint-initdb.d/restore.sql:Z,ro \
             "$MARIADB_IMAGE" > /dev/null
          # MariaDB doesn't have a "run task and exit" mode, so we just wait until
          # the logs indicate it has finished, then we stop it.
          last_check=0
-         until container_tool logs --since "$last_check" "$db_runner" 2>&1 | grep -q 'MariaDB setup finished'; do
+         until container_tool logs --since "$last_check" "$db_runner" 2>&1 | grep -q -E 'setup finished|init process done'; do
             last_check=$(($(date +%s)-1))
             sleep 5
          done

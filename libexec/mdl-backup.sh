@@ -357,7 +357,7 @@ for mname in $mnames; do
    db_cmd=''
    $is_container && db_cmd="$container_tool exec '$source_db_container'"
    db_cmd="$db_cmd \
-      mysqldump \
+      mariadb-dump \
          --user='$source_db_username' \
          --password='$source_db_password' \
          --single-transaction \

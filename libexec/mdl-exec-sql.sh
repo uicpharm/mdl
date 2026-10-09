@@ -41,9 +41,9 @@ for mname in $mnames; do
 
    if [ -n "$container" ]; then
       if $sql_is_file; then
-         container_tool exec -i "$container" mysql -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" "${@:3}" < "$sql"
+         container_tool exec -i "$container" mariadb -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" "${@:3}" < "$sql"
       else
-         container_tool exec -i "$container" mysql -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" "${@:3}" -e "$sql"
+         container_tool exec -i "$container" mariadb -u "$DB_USERNAME" -p"$DB_PASSWORD" "$DB_NAME" "${@:3}" -e "$sql"
       fi
    else
       echo "Could not find a container running MariaDB for Moodle for $mname!"
