@@ -30,6 +30,7 @@ services:
          - MOODLE_DATABASE_PASSWORD=${DB_PASSWORD:-password}
          - MOODLE_DATABASE_NAME=${DB_NAME:-moodle}
          - MOODLE_HOST=${MOODLE_HOST:-localhost}
+         - MOODLE_PASSWORD=changeme
       volumes:
          - /etc/localtime:/etc/localtime:ro
          - src:/bitnami/moodle
