@@ -10,10 +10,9 @@ services:
          - MARIADB_DATABASE=${DB_NAME:-moodle}
          - MARIADB_USER=${DB_USERNAME:-moodleuser}
          - MARIADB_PASSWORD=${DB_PASSWORD:-password}
-         - MARIADB_SKIP_TEST_DB=yes
       volumes:
          - /etc/localtime:/etc/localtime:ro
-         - db:/bitnami/mariadb/data
+         - db:/var/lib/mysql
    moodle:
       image: $MOODLE_IMAGE
       privileged: true
