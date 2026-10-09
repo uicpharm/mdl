@@ -12,6 +12,7 @@ bsdtar
 cachelock
 Caddyfile
 calendartype
+changeme
 classmap
 contentbank
 contenttype
