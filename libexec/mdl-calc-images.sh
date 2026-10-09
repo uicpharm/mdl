@@ -58,10 +58,12 @@ $(
 Options:
 -h, --help      Show this help message and exit.
 -u, --update    Update versions file now.
+-p, --print     Print the values of the environment variables.
 EOF
 }
 
 [[ $* =~ -h || $* =~ --help ]] && display_help && exit
+[[ $* =~ -p || $* =~ --print ]] && print_values=true
 
 # Positional parameter #1: Environment
 if [[ $1 == -* || -z $1 ]]; then
@@ -90,3 +92,8 @@ done
 
 export MARIADB_IMAGE=$mariadb_ver
 export MOODLE_IMAGE=$moodle_ver
+
+if [[ $print_values == true ]]; then
+   echo "MARIADB_IMAGE=$mariadb_ver"
+   echo "MOODLE_IMAGE=$moodle_ver"
+fi
