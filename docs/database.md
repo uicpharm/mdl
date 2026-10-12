@@ -4,9 +4,9 @@ How do I...
 
 ## Access Moodle database within the Docker stack?
 
-Three possible ways to give yourself access to the database are: Access the `mysql` client
-from CLI, set up phpMyAdmin, or probably the easiest, expose port 3306 on the database
-container.
+Three possible ways to give yourself access to the database are: Access the `mariadb`
+client from CLI, set up phpMyAdmin, or probably the easiest, expose port 3306 on the
+database container.
 
 ### Use the `mdl tunnel` script
 
@@ -42,17 +42,17 @@ ports: [ 3306:3306 ]
 If you just need to execute a SQL file on the database, you can just run it with the help
 of the [mdl exec-sql](./scripts.md#mdl-exec-sql) script.
 
-### Access `mysql` client from CLI
+### Access `mariadb` client from CLI
 
-If you want to run the `mysql` CLI, you can enter the console of the database container
-and run the `mysql` client. Something like this on the server hosting the container:
+If you want to run the `mariadb` CLI, you can enter the console of the database container
+and run the `mariadb` client. Something like this on the server hosting the container:
 
 ```sh
 # Provide instance name depending on which environment you want
 mname=mymoodle
 # Database name is 'moodle_mymoodle'
 dbname=moodle_mymoodle
-docker exec -it "$(docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep mariadb)" mysql --user=root -p $dbname
+docker exec -it "$(docker ps -f "label=com.docker.compose.project=$mname" --format '{{.Names}}' | grep mariadb)" mariadb --user=root -p $dbname
 ```
 
 ## Access production database with GUI tools?
